@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { MOCK_ORDER_ITEMS } from "./mockData";
+import { MOCK_ORDERS, MOCK_ORDER_ADDRESSES, MOCK_ORDER_ITEMS } from "./mockData";
 import { CATALOG_SNAPSHOT } from "./catalogSnapshot";
+import { isValidCpf, isValidEmail, isValidPhone } from "./parser/normalizers";
 
 /**
  * Trava a classe de bug encontrada em 2026-08-22: itens de pedido de
@@ -53,6 +54,51 @@ describe("dados de demonstração — consistência com o catálogo real", () =>
   it("nenhum item mockado usa sku inventado (catálogo real não tem essa coluna)", () => {
     for (const item of allItems) {
       expect(item.sku).toBeNull();
+    }
+  });
+});
+
+/**
+ * Trava a classe de bug encontrada em 2026-08-22: pedido #1045 marcado
+ * como "criado" mas sem CPF, telefone, e-mail, endereço ou itens — um
+ * pedido só chega a "criado" depois de passar todas as validações, então
+ * o dado de demonstração tem que ser coerente com o próprio status.
+ */
+describe("dados de demonstração — pedido criado tem que ter dados completos e válidos", () => {
+  const createdOrders = MOCK_ORDERS.filter(({ order }) => order.status === "created");
+
+  it("todo pedido criado tem nome, CPF, telefone e e-mail válidos", () => {
+    for (const { order } of createdOrders) {
+      expect(order.customer_name.trim(), `pedido #${order.public_number}: nome vazio`).not.toBe("");
+      expect(isValidCpf(order.cpf), `pedido #${order.public_number}: CPF inválido`).toBe(true);
+      expect(isValidPhone(order.phone), `pedido #${order.public_number}: telefone inválido`).toBe(true);
+      if (order.email) {
+        expect(isValidEmail(order.email), `pedido #${order.public_number}: e-mail inválido`).toBe(true);
+      }
+    }
+  });
+
+  it("todo pedido criado tem endereço com rua, número, cidade e UF", () => {
+    for (const { order } of createdOrders) {
+      const address = MOCK_ORDER_ADDRESSES[order.id];
+      expect(address, `pedido #${order.public_number}: sem endereço`).toBeDefined();
+      expect(address?.street.trim(), `pedido #${order.public_number}: rua vazia`).not.toBe("");
+      expect(address?.number.trim(), `pedido #${order.public_number}: número vazio`).not.toBe("");
+      expect(address?.city.trim(), `pedido #${order.public_number}: cidade vazia`).not.toBe("");
+      expect(address?.state.trim(), `pedido #${order.public_number}: UF vazia`).not.toBe("");
+    }
+  });
+
+  it("todo pedido criado tem ao menos um item vinculado a uma variante real", () => {
+    for (const { order } of createdOrders) {
+      const items = MOCK_ORDER_ITEMS[order.id];
+      expect(items?.length, `pedido #${order.public_number}: sem itens`).toBeGreaterThan(0);
+      for (const item of items ?? []) {
+        expect(
+          item.catalog_product_id,
+          `pedido #${order.public_number}: item "${item.product_name}" sem produto do catálogo vinculado`,
+        ).not.toBeNull();
+      }
     }
   });
 });
