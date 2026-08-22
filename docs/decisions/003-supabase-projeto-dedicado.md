@@ -28,8 +28,14 @@ Zero risco de contaminação com o estoque — bancos Postgres completamente dif
 - RLS confirmada habilitada (`rowsecurity = true`) nas 10 tabelas via consulta direta a `pg_tables`.
 - Senha do banco e a connection string usada **não foram commitadas em nenhum arquivo do repositório** — usadas só localmente numa pasta de scratch (fora do projeto), removida depois de aplicar a migration.
 
+## Atualização — login real funcionando (mesmo dia)
+
+- `.env.local` configurado com a anon key real do projeto; `VITE_MOCK_AUTH=false`.
+- Primeiro usuário admin criado via Supabase Auth Admin API (`lucas@hinfros.com.br`, senha temporária gerada e entregue fora deste repositório) + linha correspondente em `profiles` (`role: admin`).
+- Login testado no navegador contra o Supabase real: sessão criada, perfil carregado da tabela `profiles` real ("Lucas" aparece na sidebar), sessão persiste entre reloads (Supabase Auth cuida disso via localStorage — o hack de `sessionStorage` do modo mock não é mais necessário quando `VITE_MOCK_AUTH=false`).
+
 ## Pendências
 
-- `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` (a **anon key**, não a service_role) ainda precisam ser configuradas no `.env.local` do frontend quando o app sair do modo demo (`VITE_MOCK_AUTH`) — a anon key real desse projeto ainda não foi coletada nesta sessão.
-- Nenhum usuário (`auth.users`/`profiles`) foi criado ainda — login real segue indisponível até isso ser feito.
-- Edge Functions (`orders-api`, `dispatch-integrations`, `integration-callback`) ainda não foram implantadas.
+- Edge Functions (`orders-api`, sincronização de catálogo, `dispatch-integrations`, `integration-callback`) ainda não foram implantadas — hoje o app ainda lê `MOCK_ORDERS`/`CATALOG_SNAPSHOT` locais, não as tabelas reais `orders`/`catalog_products`.
+- Trocar a senha temporária do admin no primeiro login real (fluxo de troca de senha ainda não existe na UI — usar o painel do Supabase ou implementar isso).
+- Sincronizar `catalog_products`/`catalog_variants` reais (hoje vazias) a partir do `GET /api/catalog/variants` do estoque.
