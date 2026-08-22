@@ -33,6 +33,8 @@ export interface Order {
   discount_amount: number;
   total_amount: number;
   failure_reason: string | null;
+  coupon_code: string | null;
+  coupon_sale_status: "none" | "registered" | "not_found" | "error";
   created_by: string;
   created_at: string;
   updated_at: string;

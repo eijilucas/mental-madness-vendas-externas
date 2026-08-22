@@ -10,7 +10,9 @@ import { matchCatalogItem } from "@/lib/catalog/matchProduct";
 import { supabase } from "@/lib/supabase/client";
 
 type Step = "paste" | "review" | "result";
-type ConfirmResult = { ok: true; orderNumber: number } | { ok: false; reason: string };
+type ConfirmResult =
+  | { ok: true; orderNumber: number; couponWarning?: string }
+  | { ok: false; reason: string };
 
 function emptyForm(originalMessage: string): ReviewForm {
   return {
@@ -29,6 +31,7 @@ function emptyForm(originalMessage: string): ReviewForm {
     originalMessage,
     source: "whatsapp",
     sourceUsername: "",
+    couponCode: "",
   };
 }
 
@@ -82,6 +85,7 @@ export function NewOrderPage() {
       originalMessage: message,
       source: "whatsapp",
       sourceUsername: "",
+      couponCode: "",
     };
 
     setForm(nextForm);
@@ -194,11 +198,31 @@ export function NewOrderPage() {
       return;
     }
 
-    if (data.status === "created") {
-      setResult({ ok: true, orderNumber: data.public_number });
-    } else {
+    if (data.status !== "created") {
       setResult({ ok: false, reason: data.failure_reason ?? "Pedido não criado." });
+      setStep("result");
+      return;
     }
+
+    let couponWarning: string | undefined;
+    if (form.couponCode.trim()) {
+      try {
+        const { data: couponResult, error: couponError } = await supabase.functions.invoke(
+          "register-coupon-sale",
+          { body: { order_id: data.order_id, coupon_code: form.couponCode.trim() } },
+        );
+        if (couponError || couponResult?.status === "error") {
+          couponWarning = "Não deu pra registrar o cupom agora — confira depois no pedido.";
+        } else if (couponResult?.status === "not_found") {
+          couponWarning =
+            "Cupom não encontrado — confira se está digitado corretamente ou contate o TI.";
+        }
+      } catch {
+        couponWarning = "Não deu pra registrar o cupom agora — confira depois no pedido.";
+      }
+    }
+
+    setResult({ ok: true, orderNumber: data.public_number, couponWarning });
     setStep("result");
   }
 
@@ -214,6 +238,9 @@ export function NewOrderPage() {
             <p className="mt-2 text-text">
               #{result.orderNumber} foi criado e seguirá o fluxo operacional.
             </p>
+            {result.couponWarning && (
+              <p className="mt-2 text-sm text-warning">{result.couponWarning}</p>
+            )}
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 to={`/pedidos/${result.orderNumber}`}
@@ -336,6 +363,19 @@ export function NewOrderPage() {
                   onChange={(v) => updateField("sourceUsername", v)}
                 />
               )}
+              <div>
+                <label htmlFor="field-cupom" className="mb-1.5 block text-sm text-text-muted">
+                  Cupom utilizado (opcional)
+                </label>
+                <input
+                  id="field-cupom"
+                  type="text"
+                  value={form.couponCode}
+                  onChange={(e) => updateField("couponCode", e.target.value.toUpperCase())}
+                  placeholder="Ex.: DARK"
+                  className="w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-text-disabled focus-visible:border-text"
+                />
+              </div>
             </div>
           </section>
 

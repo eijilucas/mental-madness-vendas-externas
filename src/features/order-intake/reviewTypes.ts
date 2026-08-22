@@ -28,6 +28,8 @@ export interface ReviewForm {
   // @usuário (discord/instagram) — para whatsapp é derivado do telefone,
   // não digitado.
   sourceUsername: string;
+  // Cupom de afiliado, opcional, de qualquer origem — não só WhatsApp.
+  couponCode: string;
 }
 
 export type FieldStatus = "recognized" | "missing" | "invalid" | "ambiguous" | "corrected";

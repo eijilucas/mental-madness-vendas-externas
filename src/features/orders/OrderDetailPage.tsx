@@ -189,8 +189,22 @@ export function OrderDetailPage() {
           <p className="mt-2 text-xs text-text-muted">
             Origem: {SOURCE_LABELS[order.source] ?? order.source}
             {order.source_identifier &&
-              ` · ${order.source === "whatsapp" ? "final" : "@"}${order.source_identifier}`}
+              ` · ${order.source === "whatsapp" ? "final " : "@"}${order.source_identifier}`}
           </p>
+          {order.coupon_code && (
+            <p className="mt-1 text-xs text-text-muted">
+              Cupom: {order.coupon_code} —{" "}
+              {order.coupon_sale_status === "registered" && (
+                <span className="text-success">registrado na comissão</span>
+              )}
+              {order.coupon_sale_status === "not_found" && (
+                <span className="text-danger">cupom não encontrado</span>
+              )}
+              {order.coupon_sale_status === "error" && (
+                <span className="text-warning">falha ao registrar, conferir depois</span>
+              )}
+            </p>
+          )}
         </section>
       </div>
 
