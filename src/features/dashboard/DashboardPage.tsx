@@ -1,12 +1,46 @@
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { MetricCard } from "@/components/ui/MetricCard";
-import { MOCK_ORDERS } from "@/lib/mockData";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { useOrders } from "@/lib/supabase/queries";
+
+function isToday(isoDate: string): boolean {
+  const d = new Date(isoDate);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
 
 export function DashboardPage() {
-  const today = MOCK_ORDERS; // mock: todos "hoje" para demonstração
+  const { data: orders, isLoading, isError, refetch } = useOrders();
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-8">
+        <PageHeader title="Visão geral" />
+        <LoadingState label="Carregando…" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col gap-8">
+        <PageHeader title="Visão geral" />
+        <ErrorState message="Não foi possível carregar os pedidos." onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  const all = orders ?? [];
+  const today = all.filter((o) => isToday(o.order.created_at));
   const created = today.filter((o) => o.order.status === "created").length;
   const notCreated = today.filter((o) => o.order.status === "not_created").length;
+  const recent = all.slice(0, 3);
 
   return (
     <div className="flex flex-col gap-8">
@@ -24,11 +58,11 @@ export function DashboardPage() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricCard label="Pedidos hoje" value={today.length} hint="+3 em relação a ontem" />
+        <MetricCard label="Pedidos hoje" value={today.length} />
         <MetricCard
           label="Pedidos criados"
           value={created}
-          hint={`${Math.round((created / today.length) * 100)}% do total recebido`}
+          hint={today.length > 0 ? `${Math.round((created / today.length) * 100)}% do total recebido` : undefined}
         />
         <MetricCard
           label="Não criados"
@@ -44,8 +78,11 @@ export function DashboardPage() {
             Ver todos
           </Link>
         </div>
+        {recent.length === 0 && (
+          <p className="text-sm text-text-muted">Nenhum pedido registrado ainda.</p>
+        )}
         <div className="flex flex-col gap-3">
-          {today.slice(0, 3).map(({ order, itemsSummary }) => (
+          {recent.map(({ order, itemsSummary }) => (
             <Link
               key={order.id}
               to={`/pedidos/${order.public_number}`}

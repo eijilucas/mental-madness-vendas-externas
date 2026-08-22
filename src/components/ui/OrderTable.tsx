@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
-import type { MockOrderSummary } from "@/lib/mockData";
+import type { OrderSummary } from "@/lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { OrderCard } from "./OrderCard";
 import { formatCurrency } from "@/lib/formatting/mask";
 
 interface OrderTableProps {
-  orders: MockOrderSummary[];
+  orders: OrderSummary[];
 }
 
 export function OrderTable({ orders }: OrderTableProps) {

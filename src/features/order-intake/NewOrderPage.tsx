@@ -2,9 +2,12 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { parseWhatsappMessage, type ParsedField } from "@/lib/parser/parseWhatsappMessage";
-import { isValidCep, isValidCpf, isValidEmail, isValidPhone, normalizeUf } from "@/lib/parser/normalizers";
+import { isValidCep, isValidCpf, isValidEmail, isValidPhone, normalizeUf, onlyDigits } from "@/lib/parser/normalizers";
 import { ReviewField } from "./ReviewField";
 import type { FieldStatus, ReviewForm, ReviewItem } from "./reviewTypes";
+import { useCatalog } from "@/lib/supabase/queries";
+import { matchCatalogItem } from "@/lib/catalog/matchProduct";
+import { supabase } from "@/lib/supabase/client";
 
 type Step = "paste" | "review" | "result";
 type ConfirmResult = { ok: true; orderNumber: number } | { ok: false; reason: string };
@@ -39,6 +42,8 @@ export function NewOrderPage() {
   const [form, setForm] = useState<ReviewForm>(emptyForm(""));
   const [statuses, setStatuses] = useState<Record<string, FieldStatus>>({});
   const [result, setResult] = useState<ConfirmResult | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const { data: catalog } = useCatalog();
 
   function handleInterpret() {
     const parsed = parseWhatsappMessage(message);
@@ -112,16 +117,68 @@ export function NewOrderPage() {
     if (form.items.length === 0) errors.push("Adicione ao menos um item.");
     form.items.forEach((item, i) => {
       if (!item.size) errors.push(`Item ${i + 1}: selecione uma variante válida.`);
+      if (!(item.unitPrice > 0)) errors.push(`Item ${i + 1}: informe o preço.`);
     });
     return errors;
   }, [form]);
 
-  function handleConfirm() {
-    if (validation.length > 0) return;
-    // Mock local — a criação real (idempotente, via Edge Function + outbox)
-    // entra na fase de integração; aqui só simula o resultado final exibido.
-    const orderNumber = 1049;
-    setResult({ ok: true, orderNumber });
+  async function handleConfirm() {
+    if (validation.length > 0 || submitting) return;
+    setSubmitting(true);
+
+    const catalogProducts = catalog ?? [];
+    const items = form.items.map((item) => {
+      const match = matchCatalogItem(item.productQuery, item.size, catalogProducts);
+      return {
+        catalog_product_id: match?.product.id ?? null,
+        variant_key: match?.variantKey ?? null,
+        product_name: match?.product.name ?? item.productQuery,
+        color: null,
+        size: item.size,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      };
+    });
+
+    const payload = {
+      idempotency_key: crypto.randomUUID(),
+      customer: {
+        name: form.customerName,
+        cpf: onlyDigits(form.cpf),
+        email: form.email || null,
+        phone: onlyDigits(form.phone),
+      },
+      address: {
+        cep: onlyDigits(form.cep),
+        street: form.street,
+        number: form.number,
+        complement: form.complement || null,
+        district: form.district,
+        city: form.city,
+        state: normalizeUf(form.state),
+        ibge_code: null,
+        cep_verified: false,
+      },
+      items,
+      original_message: form.originalMessage,
+      source: "whatsapp",
+    };
+
+    const { data, error } = await supabase.rpc("create_external_order", { payload });
+
+    setSubmitting(false);
+
+    if (error) {
+      setResult({ ok: false, reason: "Falha técnica ao criar o pedido. Tente novamente." });
+      setStep("result");
+      return;
+    }
+
+    if (data.status === "created") {
+      setResult({ ok: true, orderNumber: data.public_number });
+    } else {
+      setResult({ ok: false, reason: data.failure_reason ?? "Pedido não criado." });
+    }
     setStep("result");
   }
 
@@ -321,50 +378,67 @@ export function NewOrderPage() {
               </p>
             ) : (
               <div className="flex flex-col gap-4">
-                {form.items.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="grid grid-cols-1 gap-3 rounded-md border border-border p-4 sm:grid-cols-3"
-                  >
-                    <ReviewField
-                      label="Produto (texto original)"
-                      value={item.productQuery}
-                      status="ambiguous"
-                      onChange={(v) => {
-                        const items = [...form.items];
-                        items[index] = { ...item, productQuery: v };
-                        updateField("items", items);
-                      }}
-                    />
-                    <ReviewField
-                      label="Tamanho"
-                      value={item.size}
-                      status={item.size ? "recognized" : "missing"}
-                      onChange={(v) => {
-                        const items = [...form.items];
-                        items[index] = { ...item, size: v };
-                        updateField("items", items);
-                      }}
-                    />
-                    <ReviewField
-                      label="Quantidade"
-                      value={String(item.quantity)}
-                      status="recognized"
-                      type="number"
-                      onChange={(v) => {
-                        const items = [...form.items];
-                        items[index] = { ...item, quantity: Number(v) || 1 };
-                        updateField("items", items);
-                      }}
-                    />
-                  </div>
-                ))}
+                {form.items.map((item, index) => {
+                  const match = matchCatalogItem(item.productQuery, item.size, catalog ?? []);
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-md border border-border p-4"
+                    >
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                        <ReviewField
+                          label="Produto (texto original)"
+                          value={item.productQuery}
+                          status="ambiguous"
+                          onChange={(v) => {
+                            const items = [...form.items];
+                            items[index] = { ...item, productQuery: v };
+                            updateField("items", items);
+                          }}
+                        />
+                        <ReviewField
+                          label="Tamanho"
+                          value={item.size}
+                          status={item.size ? "recognized" : "missing"}
+                          onChange={(v) => {
+                            const items = [...form.items];
+                            items[index] = { ...item, size: v };
+                            updateField("items", items);
+                          }}
+                        />
+                        <ReviewField
+                          label="Quantidade"
+                          value={String(item.quantity)}
+                          status="recognized"
+                          type="number"
+                          onChange={(v) => {
+                            const items = [...form.items];
+                            items[index] = { ...item, quantity: Number(v) || 1 };
+                            updateField("items", items);
+                          }}
+                        />
+                        <ReviewField
+                          label="Preço unitário"
+                          value={item.unitPrice ? String(item.unitPrice) : ""}
+                          status={item.unitPrice > 0 ? "recognized" : "missing"}
+                          type="number"
+                          onChange={(v) => {
+                            const items = [...form.items];
+                            items[index] = { ...item, unitPrice: Number(v) || 0 };
+                            updateField("items", items);
+                          }}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-text-muted">
+                        {match
+                          ? `Casado com: ${match.product.name} (${match.variantKey})`
+                          : "Sem correspondência no catálogo ainda — o pedido será marcado como não criado se continuar assim."}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             )}
-            <p className="mt-3 text-xs text-text-muted">
-              A correspondência com variantes oficiais do catálogo será exigida antes da
-              criação (fase seguinte da implementação).
-            </p>
           </section>
 
           <section className="rounded-md border border-border bg-surface p-6 text-left">
@@ -391,10 +465,10 @@ export function NewOrderPage() {
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={validation.length > 0}
+              disabled={validation.length > 0 || submitting}
               className="rounded-md bg-accent px-6 py-3 text-sm font-semibold text-bg disabled:opacity-50"
             >
-              Criar pedido
+              {submitting ? "Criando…" : "Criar pedido"}
             </button>
             <button
               type="button"

@@ -3,22 +3,35 @@ import { Link, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import {
-  MOCK_ORDERS,
-  MOCK_ORDER_ADDRESSES,
-  MOCK_ORDER_ITEMS,
-} from "@/lib/mockData";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { useOrder } from "@/lib/supabase/queries";
 import { formatCurrency, formatCep, formatPhone, maskCpf } from "@/lib/formatting/mask";
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const [showOriginal, setShowOriginal] = useState(false);
+  const { data, isLoading, isError, refetch } = useOrder(orderNumber);
 
-  const found = MOCK_ORDERS.find(
-    ({ order }) => String(order.public_number) === orderNumber,
-  );
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Carregando pedido…" />
+        <LoadingState />
+      </div>
+    );
+  }
 
-  if (!found) {
+  if (isError) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Pedido" />
+        <ErrorState message="Não foi possível carregar este pedido." onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  if (!data) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title="Pedido não encontrado" />
@@ -35,9 +48,7 @@ export function OrderDetailPage() {
     );
   }
 
-  const { order } = found;
-  const address = MOCK_ORDER_ADDRESSES[order.id];
-  const items = MOCK_ORDER_ITEMS[order.id] ?? [];
+  const { order, address, items } = data;
   const isCreated = order.status === "created";
 
   return (

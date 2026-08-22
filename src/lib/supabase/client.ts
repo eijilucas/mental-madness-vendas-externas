@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
 
+// Sem tipos gerados de verdade ainda (`supabase gen types typescript` contra
+// o projeto real) — usar o client sem generic força tudo pra `any` em vez de
+// inferir errado como `never`. Trocar por `createClient<Database>` quando os
+// tipos gerados existirem.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const mockAuth = import.meta.env.VITE_MOCK_AUTH === "true";
@@ -18,5 +21,5 @@ export const supabase = mockAuth
           "VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY são obrigatórias. Veja .env.example.",
         );
       }
-      return createClient<Database>(supabaseUrl, supabaseKey);
+      return createClient(supabaseUrl, supabaseKey);
     })();

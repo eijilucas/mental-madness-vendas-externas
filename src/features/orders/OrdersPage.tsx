@@ -5,16 +5,19 @@ import { SearchField } from "@/components/ui/SearchField";
 import { FilterTabs } from "@/components/ui/FilterTabs";
 import { OrderTable } from "@/components/ui/OrderTable";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { MOCK_ORDERS } from "@/lib/mockData";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { useOrders } from "@/lib/supabase/queries";
 
 type StatusFilter = "all" | "created" | "not_created";
 
 export function OrdersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const { data: orders, isLoading, isError, refetch } = useOrders();
 
   const filtered = useMemo(() => {
-    return MOCK_ORDERS.filter(({ order }) => {
+    return (orders ?? []).filter(({ order }) => {
       if (status !== "all" && order.status !== status) return false;
       if (!search.trim()) return true;
       const term = search.trim().toLowerCase();
@@ -24,7 +27,7 @@ export function OrdersPage() {
         String(order.public_number).includes(term)
       );
     });
-  }, [search, status]);
+  }, [orders, search, status]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -60,7 +63,11 @@ export function OrdersPage() {
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <LoadingState label="Carregando pedidos…" />
+      ) : isError ? (
+        <ErrorState message="Não foi possível carregar os pedidos." onRetry={() => refetch()} />
+      ) : filtered.length === 0 ? (
         <EmptyState
           title="Nenhum pedido encontrado"
           description="Ajuste a busca ou os filtros."

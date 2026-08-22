@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import type { MockOrderSummary } from "@/lib/mockData";
+import type { OrderSummary } from "@/lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { formatCurrency } from "@/lib/formatting/mask";
 
-export function OrderCard({ order, itemsSummary }: MockOrderSummary) {
+export function OrderCard({ order, itemsSummary }: OrderSummary) {
   const isCreated = order.status === "created";
 
   return (
