@@ -64,31 +64,28 @@ export interface OrderItem {
   total_price: number;
 }
 
+/**
+ * Espelha o que `GET /api/catalog/variants` do mental-madness-estoque
+ * realmente retorna (docs/api-contracts/01-catalog-read.md) — sem sku,
+ * barcode, preço ou imagem: essas colunas não existem no estoque. Preço
+ * continua sendo digitado manualmente pelo operador na revisão do pedido.
+ */
 export interface CatalogProduct {
   id: string;
-  shopify_product_id: string | null;
-  title: string;
-  status: "active" | "archived";
-  image_url: string | null;
+  name: string;
+  type: "basico" | "exclusivo";
+  category: string | null;
+  drop: { id: string; name: string; status: string } | null;
+  active: boolean;
   synced_at: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface CatalogVariant {
-  id: string;
   product_id: string;
-  shopify_variant_id: string | null;
-  sku: string | null;
-  barcode: string | null;
-  color: string | null;
+  variant_key: string;
   size: string | null;
-  price: number;
-  available_quantity: number | null;
-  active: boolean;
-  synced_at: string;
-  created_at: string;
-  updated_at: string;
+  color: string | null;
+  estoque_real: number;
 }
 
 export interface ProductAlias {
