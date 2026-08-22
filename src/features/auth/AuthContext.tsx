@@ -21,6 +21,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isMockAuthEnabled) {
+      // Mantém a sessão de demonstração entre recarregamentos de página —
+      // só para o modo local sem backend (ver mockAuth.ts).
+      if (sessionStorage.getItem("mm_mock_session") === "1") {
+        setProfile(MOCK_PROFILE);
+        setSession({ user: { id: MOCK_PROFILE.id } } as Session);
+      }
       setLoading(false);
       return;
     }
@@ -58,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(email: string, password: string) {
     if (isMockAuthEnabled) {
+      sessionStorage.setItem("mm_mock_session", "1");
       setProfile(MOCK_PROFILE);
       setSession({ user: { id: MOCK_PROFILE.id } } as Session);
       return { error: null };
@@ -69,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     if (isMockAuthEnabled) {
+      sessionStorage.removeItem("mm_mock_session");
       setSession(null);
       setProfile(null);
       return;

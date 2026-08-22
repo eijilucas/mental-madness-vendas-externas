@@ -2,7 +2,10 @@ import type { Order, OrderAddress, OrderItem } from "@/types/database";
 
 /**
  * Dados fictícios para demonstração local (fase "páginas com dados mockados"
- * do plano). Espelham os exemplos vistos no protótipo Framer público. Serão
+ * do plano). Clientes/pedidos são fictícios, mas os PRODUTOS referenciados
+ * são os nomes reais do catálogo do estoque (ver src/lib/catalogSnapshot.ts,
+ * puxado do Supabase real em 2026-08-22) — não os nomes inventados do
+ * protótipo Framer usados numa versão anterior deste arquivo. Serão
  * substituídos por TanStack Query + Supabase reais nas fases seguintes.
  */
 
@@ -39,7 +42,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       created_at: daysAgo(0),
       updated_at: daysAgo(0),
     },
-    itemsSummary: "Calça Drop Hells · M",
+    itemsSummary: "Calça Oversized - Hell Hounds Drop · M",
   },
   {
     order: {
@@ -84,7 +87,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       created_at: daysAgo(1),
       updated_at: daysAgo(1),
     },
-    itemsSummary: "Calça Hell Hounds · M",
+    itemsSummary: "Calça Oversized - Hell Hounds Drop · M",
   },
   {
     order: {
@@ -106,7 +109,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       created_at: daysAgo(2),
       updated_at: daysAgo(2),
     },
-    itemsSummary: "Moletom Dark Moon · P",
+    itemsSummary: "Moletom Zip Up Gola Alta - Hell Hounds · P",
   },
   {
     order: {
@@ -128,7 +131,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       created_at: daysAgo(3),
       updated_at: daysAgo(3),
     },
-    itemsSummary: "Camiseta Basics · G",
+    itemsSummary: "Camiseta Regular - MM Basic Drop · G",
   },
 ];
 
@@ -161,15 +164,19 @@ export const MOCK_ORDER_ADDRESSES: Record<string, OrderAddress> = {
   },
 };
 
+// catalog_product_id/catalog_variant_id abaixo usam os IDs reais do estoque
+// (ver src/lib/catalogSnapshot.ts) — "shopify-10799740682552" é o produto
+// real "Calça Oversized - Hell Hounds Drop". Sem sku: essa coluna não existe
+// no catálogo real do estoque (ver docs/decisions/002).
 export const MOCK_ORDER_ITEMS: Record<string, OrderItem[]> = {
   "order-1048": [
     {
       id: "item-1048-1",
       order_id: "order-1048",
-      catalog_product_id: "prod-drop-hells",
-      catalog_variant_id: "variant-drop-hells-m",
-      sku: "CAL-DH-M",
-      product_name: "Calça Drop Hells",
+      catalog_product_id: "shopify-10799740682552",
+      catalog_variant_id: "shopify-10799740682552::M",
+      sku: null,
+      product_name: "Calça Oversized - Hell Hounds Drop",
       color: null,
       size: "M",
       quantity: 1,
@@ -181,11 +188,15 @@ export const MOCK_ORDER_ITEMS: Record<string, OrderItem[]> = {
     {
       id: "item-1046-1",
       order_id: "order-1046",
-      catalog_product_id: "prod-hell-hounds",
-      catalog_variant_id: "variant-hell-hounds-m",
-      sku: "CAL-HH-M-PT",
-      product_name: "Calça Hell Hounds",
-      color: "Preto",
+      catalog_product_id: "shopify-10799740682552",
+      catalog_variant_id: "shopify-10799740682552::M",
+      sku: null,
+      // Mensagem original do cliente diz "Calça Hell Hounds" — nome real do
+      // produto é "Calça Oversized - Hell Hounds Drop". Essa divergência é
+      // proposital: demonstra o que o casamento com catálogo (aliases) tem
+      // que resolver.
+      product_name: "Calça Oversized - Hell Hounds Drop",
+      color: null,
       size: "M",
       quantity: 1,
       unit_price: 289.9,
