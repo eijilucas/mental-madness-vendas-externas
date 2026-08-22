@@ -20,6 +20,22 @@ describe("matchCatalogItem", () => {
     expect(result).toBeNull();
   });
 
+  it('não casa "casaco Hell Hounds" com a calça do mesmo drop (bug real: palavras do drop não bastam)', () => {
+    const result = matchCatalogItem("casaco Hell M Hounds", "M", CATALOG_SNAPSHOT);
+    expect(result).toBeNull();
+  });
+
+  it("distingue peças diferentes do mesmo drop pelo tipo mencionado", () => {
+    const camiseta = matchCatalogItem("Camiseta Oversized Hell Hounds", "M", CATALOG_SNAPSHOT);
+    expect(camiseta?.product.name).toBe("Camiseta Oversized - Hell Hounds");
+
+    const moletom = matchCatalogItem("Moletom Hell Hounds", "M", CATALOG_SNAPSHOT);
+    expect(moletom?.product.name).toBe("Moletom Zip Up Gola Alta - Hell Hounds");
+
+    const calca = matchCatalogItem("Calça Hell Hounds", "M", CATALOG_SNAPSHOT);
+    expect(calca?.product.name).toBe("Calça Oversized - Hell Hounds Drop");
+  });
+
   it("não casa com produto inativo", () => {
     const inactiveCatalog = CATALOG_SNAPSHOT.map((p) =>
       p.name.includes("Hell Hounds") ? { ...p, active: false } : p,

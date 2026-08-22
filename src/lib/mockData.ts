@@ -32,6 +32,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       email: "gunnerbr1@outlook.com",
       phone: "15991159050",
       source: "whatsapp",
+      source_identifier: "9050",
       original_message: "",
       subtotal: 329.9,
       shipping_amount: 0,
@@ -54,6 +55,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       email: "jose.gustavo@example.com",
       phone: "88999998888",
       source: "whatsapp",
+      source_identifier: "8888",
       original_message:
         "Peças, cores e tamanhos:calça hell hounds tamanho (P), calça preta darkmonn bload tamanho GG\nNome e Sobrenome:José Gustavo\nCEP:63430000",
       subtotal: 579.8,
@@ -77,6 +79,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       email: "acardin31@gmail.com",
       phone: "16996169828",
       source: "whatsapp",
+      source_identifier: "9828",
       original_message:
         "Peças, cores e tamanhos: Calça Hell Hounds tamanho M\nNome e Sobrenome: Luiz Felipe Gomes de Sousa\nCEP: 14169310",
       subtotal: 289.9,
@@ -100,6 +103,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       email: "mariana.costa@example.com",
       phone: "11987654321",
       source: "whatsapp",
+      source_identifier: "4321",
       original_message:
         "Moletom Zip Up Gola Alta Hell Hounds tamanho P\nMariana Costa\nAvenida Paulista, 1000, Bela Vista, São Paulo SP\n01310-930\n529.982.247-25\n(11) 98765-4321",
       subtotal: 359.9,
@@ -123,6 +127,7 @@ export const MOCK_ORDERS: MockOrderSummary[] = [
       email: "pedro.henrique@example.com",
       phone: "21988887777",
       source: "whatsapp",
+      source_identifier: "7777",
       original_message:
         "Camiseta Regular tamanho G\nPedro Henrique\nCEP: 20040020\nCPF: 111.222.333-44\nTelefone: (21) 98888-7777",
       subtotal: 179.9,

@@ -15,6 +15,18 @@ export function maskCpfForList(cpfDigits: string): string {
   return `${digits.slice(0, 3)}.***.***-${digits.slice(9)}`;
 }
 
+/** Mascara o miolo do telefone para papéis sem acesso a dado completo (LGPD). */
+export function maskPhoneForList(phoneDigits: string): string {
+  const digits = phoneDigits.replace(/\D/g, "").replace(/^55/, "");
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)}****-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ****-${digits.slice(6)}`;
+  }
+  return "—";
+}
+
 export function formatPhone(phoneDigits: string): string {
   const digits = phoneDigits.replace(/\D/g, "").replace(/^55/, "");
   if (digits.length === 11) {

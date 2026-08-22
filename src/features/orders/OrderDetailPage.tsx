@@ -6,12 +6,31 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useOrder } from "@/lib/supabase/queries";
-import { formatCurrency, formatCep, formatPhone, maskCpf } from "@/lib/formatting/mask";
+import {
+  formatCurrency,
+  formatCep,
+  formatPhone,
+  maskCpf,
+  maskCpfForList,
+  maskPhoneForList,
+} from "@/lib/formatting/mask";
+import { useAuth } from "@/features/auth/useAuth";
+
+const SOURCE_LABELS: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  discord: "Discord",
+  instagram: "Instagram",
+  manual: "Manual",
+};
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const [showOriginal, setShowOriginal] = useState(false);
   const { data, isLoading, isError, refetch } = useOrder(orderNumber);
+  const { profile } = useAuth();
+  // Dado completo (CPF/telefone) só para quem pode agir sobre o pedido —
+  // viewer vê mascarado, mesma regra de LGPD já usada nas listagens (§17).
+  const canSeeFullPii = profile?.role === "admin" || profile?.role === "operator";
 
   if (isLoading) {
     return (
@@ -93,11 +112,19 @@ export function OrderDetailPage() {
             </div>
             <div>
               <dt className="text-text-muted">CPF</dt>
-              <dd className="text-text">{order.cpf ? maskCpf(order.cpf) : "—"}</dd>
+              <dd className="text-text">
+                {order.cpf ? (canSeeFullPii ? maskCpf(order.cpf) : maskCpfForList(order.cpf)) : "—"}
+              </dd>
             </div>
             <div>
               <dt className="text-text-muted">Telefone</dt>
-              <dd className="text-text">{order.phone ? formatPhone(order.phone) : "—"}</dd>
+              <dd className="text-text">
+                {order.phone
+                  ? canSeeFullPii
+                    ? formatPhone(order.phone)
+                    : maskPhoneForList(order.phone)
+                  : "—"}
+              </dd>
             </div>
             <div>
               <dt className="text-text-muted">E-mail</dt>
@@ -159,7 +186,11 @@ export function OrderDetailPage() {
               {formatCurrency(order.total_amount)}
             </span>
           </div>
-          <p className="mt-2 text-xs text-text-muted">Origem: WhatsApp</p>
+          <p className="mt-2 text-xs text-text-muted">
+            Origem: {SOURCE_LABELS[order.source] ?? order.source}
+            {order.source_identifier &&
+              ` · ${order.source === "whatsapp" ? "final" : "@"}${order.source_identifier}`}
+          </p>
         </section>
       </div>
 

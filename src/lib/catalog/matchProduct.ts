@@ -16,6 +16,17 @@ function significantWords(text: string): string[] {
     .filter((w) => w.length > 1 && !STOPWORDS.has(w));
 }
 
+// Mesma lista de tipos de peça usada no parser (parseWhatsappMessage.ts) —
+// já normalizada sem acento, já que compara contra significantWords().
+const GARMENT_TYPES = [
+  "calca", "camiseta", "moletom", "jaqueta", "bone", "vestido",
+  "shorts", "regata", "casaco", "blusa",
+];
+
+function garmentType(words: string[]): string | null {
+  return words.find((w) => GARMENT_TYPES.includes(w)) ?? null;
+}
+
 export interface MatchResult {
   product: CatalogSnapshotProduct;
   variantKey: string;
@@ -24,24 +35,41 @@ export interface MatchResult {
 /**
  * Casamento simples por palavras em comum entre o texto digitado pelo
  * cliente e o nome real do produto — versão mínima até existir a UI de
- * sugestões com múltiplas opções (§7 do briefing). Nunca inventa um match:
- * exige ao menos 2 palavras relevantes em comum (ou 1, se o produto só
- * tiver uma palavra significativa) e a variante do tamanho pedido tem que
- * existir de verdade nesse produto.
+ * sugestões com múltiplas opções (§7 do briefing).
+ *
+ * Bug real encontrado em produção: dentro do mesmo drop, vários produtos
+ * compartilham as mesmas palavras do nome do drop (ex.: "Hell Hounds"
+ * aparece em calça, camiseta E moletom) — um casamento só por contagem de
+ * palavras em comum casava "casaco Hell Hounds" com a CALÇA do drop, só
+ * porque "hell"+"hounds" batiam. Por isso, quando o texto do cliente
+ * menciona um tipo de peça (calça/camiseta/moletom/...), o produto
+ * candidato PRECISA ser do mesmo tipo — nunca casa peça diferente só
+ * porque o nome do drop bate.
  */
 export function matchCatalogItem(
   productQuery: string,
   size: string,
   products: CatalogSnapshotProduct[],
 ): MatchResult | null {
-  const queryWords = new Set(significantWords(productQuery));
+  const queryWordsList = significantWords(productQuery);
+  const queryWords = new Set(queryWordsList);
   if (queryWords.size === 0) return null;
+
+  const queryType = garmentType(queryWordsList);
 
   let best: { product: CatalogSnapshotProduct; score: number } | null = null;
 
   for (const product of products) {
     if (!product.active) continue;
     const nameWords = significantWords(product.name);
+
+    if (queryType) {
+      // Cliente mencionou um tipo de peça: só considera produtos desse
+      // mesmo tipo, mesmo que outras palavras (nome do drop) batam.
+      const nameType = garmentType(nameWords);
+      if (nameType !== queryType) continue;
+    }
+
     const overlap = nameWords.filter((w) => queryWords.has(w)).length;
     const required = Math.min(2, nameWords.length);
     if (overlap < required) continue;

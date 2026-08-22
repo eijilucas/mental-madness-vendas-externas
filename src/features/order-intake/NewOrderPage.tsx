@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { parseWhatsappMessage, type ParsedField } from "@/lib/parser/parseWhatsappMessage";
 import { isValidCep, isValidCpf, isValidEmail, isValidPhone, normalizeUf, onlyDigits } from "@/lib/parser/normalizers";
 import { ReviewField } from "./ReviewField";
-import type { FieldStatus, ReviewForm, ReviewItem } from "./reviewTypes";
+import type { FieldStatus, OrderSource, ReviewForm, ReviewItem } from "./reviewTypes";
 import { useCatalog } from "@/lib/supabase/queries";
 import { matchCatalogItem } from "@/lib/catalog/matchProduct";
 import { supabase } from "@/lib/supabase/client";
@@ -27,8 +27,16 @@ function emptyForm(originalMessage: string): ReviewForm {
     state: "",
     items: [],
     originalMessage,
+    source: "whatsapp",
+    sourceUsername: "",
   };
 }
+
+const SOURCE_LABELS: Record<OrderSource, string> = {
+  whatsapp: "WhatsApp",
+  discord: "Discord",
+  instagram: "Instagram",
+};
 
 function fieldToStatus(field: ParsedField | null): FieldStatus {
   if (!field) return "missing";
@@ -72,6 +80,8 @@ export function NewOrderPage() {
         }),
       ),
       originalMessage: message,
+      source: "whatsapp",
+      sourceUsername: "",
     };
 
     setForm(nextForm);
@@ -114,6 +124,12 @@ export function NewOrderPage() {
     if (!normalizeUf(form.state)) errors.push("Selecione um estado válido.");
     if (!isValidPhone(form.phone)) errors.push("Telefone inválido.");
     if (form.email && !isValidEmail(form.email)) errors.push("E-mail inválido.");
+    if (
+      (form.source === "discord" || form.source === "instagram") &&
+      !form.sourceUsername.trim()
+    ) {
+      errors.push(`Informe o usuário do ${SOURCE_LABELS[form.source]}.`);
+    }
     if (form.items.length === 0) errors.push("Adicione ao menos um item.");
     form.items.forEach((item, i) => {
       if (!item.size) errors.push(`Item ${i + 1}: selecione uma variante válida.`);
@@ -161,7 +177,11 @@ export function NewOrderPage() {
       },
       items,
       original_message: form.originalMessage,
-      source: "whatsapp",
+      source: form.source,
+      source_identifier:
+        form.source === "whatsapp"
+          ? onlyDigits(form.phone).slice(-4)
+          : form.sourceUsername.trim(),
     };
 
     const { data, error } = await supabase.rpc("create_external_order", { payload });
@@ -281,6 +301,44 @@ export function NewOrderPage() {
 
       {step === "review" && (
         <>
+          <section className="rounded-md border border-border bg-surface p-6">
+            <h2 className="mb-4 text-base font-semibold text-text">Origem</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="field-origem" className="mb-1.5 block text-sm text-text-muted">
+                  Canal
+                </label>
+                <select
+                  id="field-origem"
+                  value={form.source}
+                  onChange={(e) => updateField("source", e.target.value as OrderSource)}
+                  className="w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text focus-visible:border-text"
+                >
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="discord">Discord</option>
+                  <option value="instagram">Instagram</option>
+                </select>
+              </div>
+              {form.source === "whatsapp" ? (
+                <div>
+                  <label className="mb-1.5 block text-sm text-text-muted">
+                    Últimos 4 dígitos do telefone
+                  </label>
+                  <div className="w-full rounded-md border border-border bg-bg px-4 py-3 text-sm text-text-muted">
+                    {onlyDigits(form.phone).slice(-4) || "— preencha o telefone —"}
+                  </div>
+                </div>
+              ) : (
+                <ReviewField
+                  label={`Usuário do ${SOURCE_LABELS[form.source]}`}
+                  value={form.sourceUsername}
+                  status={form.sourceUsername.trim() ? "recognized" : "missing"}
+                  onChange={(v) => updateField("sourceUsername", v)}
+                />
+              )}
+            </div>
+          </section>
+
           <section className="rounded-md border border-border bg-surface p-6">
             <h2 className="mb-4 text-base font-semibold text-text">Cliente</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -8,6 +8,8 @@ export interface ReviewItem {
   variantMatched: boolean;
 }
 
+export type OrderSource = "whatsapp" | "discord" | "instagram";
+
 export interface ReviewForm {
   customerName: string;
   cpf: string;
@@ -22,6 +24,10 @@ export interface ReviewForm {
   state: string;
   items: ReviewItem[];
   originalMessage: string;
+  source: OrderSource;
+  // @usuário (discord/instagram) — para whatsapp é derivado do telefone,
+  // não digitado.
+  sourceUsername: string;
 }
 
 export type FieldStatus = "recognized" | "missing" | "invalid" | "ambiguous" | "corrected";

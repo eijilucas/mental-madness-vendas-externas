@@ -24,7 +24,9 @@ export interface Order {
   cpf: string;
   email: string | null;
   phone: string;
-  source: "whatsapp" | "manual";
+  source: "whatsapp" | "discord" | "instagram" | "manual";
+  // últimos 4 dígitos do telefone (whatsapp) ou @usuário (discord/instagram)
+  source_identifier: string | null;
   original_message: string;
   subtotal: number;
   shipping_amount: number;
