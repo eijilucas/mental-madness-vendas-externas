@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { parseWhatsappMessage, type ParsedField } from "@/lib/parser/parseWhatsappMessage";
@@ -55,6 +55,25 @@ export function NewOrderPage() {
   const [result, setResult] = useState<ConfirmResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { data: catalog } = useCatalog();
+
+  // Pré-preenche o preço quando o item casa com um produto que já tem
+  // price sincronizado da Shopify (ver docs/decisions/004) — só quando
+  // ainda está zerado, pra nunca sobrescrever um valor que o operador já
+  // editou na mão.
+  useEffect(() => {
+    if (!catalog || form.items.length === 0) return;
+    let changed = false;
+    const items = form.items.map((item) => {
+      if (item.unitPrice > 0) return item;
+      const match = matchCatalogItem(item.productQuery, item.size, catalog);
+      const price = match?.product.variants.find((v) => v.variantKey === match.variantKey)?.price;
+      if (!price) return item;
+      changed = true;
+      return { ...item, unitPrice: price };
+    });
+    if (changed) setForm((prev) => ({ ...prev, items }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog, form.items]);
 
   function handleInterpret() {
     const parsed = parseWhatsappMessage(message);

@@ -15,6 +15,9 @@ export interface CatalogSnapshotVariant {
   size: string | null;
   color: string | null;
   estoqueReal: number;
+  // Preço real da Shopify (sync do estoque) — null até o próximo sync
+  // popular; nesse caso o operador preenche na mão (ver docs/decisions/004).
+  price?: number | null;
 }
 
 export interface CatalogSnapshotProduct {

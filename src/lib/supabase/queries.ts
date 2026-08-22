@@ -106,6 +106,7 @@ export function useCatalog() {
           size: v.size,
           color: v.color,
           estoqueReal: v.estoque_real,
+          price: v.price != null ? Number(v.price) : null,
         })),
       }));
 
