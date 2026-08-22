@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { MockOrderSummary } from "@/lib/mockData";
 import { StatusBadge } from "./StatusBadge";
 import { OrderCard } from "./OrderCard";
@@ -9,6 +9,8 @@ interface OrderTableProps {
 }
 
 export function OrderTable({ orders }: OrderTableProps) {
+  const navigate = useNavigate();
+
   return (
     <>
       {/* Desktop: tabela real. Mobile: cards — nunca uma tabela comprimida. */}
@@ -26,11 +28,13 @@ export function OrderTable({ orders }: OrderTableProps) {
             {orders.map(({ order, itemsSummary }) => (
               <tr
                 key={order.id}
-                className="border-b border-border last:border-0 hover:bg-surface"
+                onClick={() => navigate(`/pedidos/${order.public_number}`)}
+                className="cursor-pointer border-b border-border last:border-0 hover:bg-surface"
               >
                 <td className="px-5 py-4">
                   <Link
                     to={`/pedidos/${order.public_number}`}
+                    onClick={(e) => e.stopPropagation()}
                     className="text-text hover:underline"
                     style={{ fontFamily: "var(--font-display)" }}
                   >
