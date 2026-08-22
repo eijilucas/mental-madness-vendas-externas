@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #050505;
+  --color-surface: #0a0a0a;
+  --color-surface-raised: #111111;
+  --color-border: #2a2a2a;
+  --color-text: #f4f4f2;
+  --color-text-muted: #9a9a94;
+  --color-text-disabled: #666666;
+  --color-accent: #ffffff;
+  --color-success: #72d68c;
+  --color-warning: #e4b95f;
+  --color-danger: #ef6464;
+  --color-info: #7ba7ff;
+
+  --font-sans: Oswald, "Oswald Placeholder", sans-serif;
+  --font-display: Cinzel, "Cinzel Placeholder", serif;
+  --font-wordmark: "Horst Blackletter", "Cinzel Placeholder", serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}
+
+@font-face {
+  font-family: "Oswald";
+  src: url("https://fonts.gstatic.com/s/oswald/v53/TK3iWkUHHAIjg752GT8G.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cinzel";
+  src: url("https://fonts.gstatic.com/s/cinzel/v26/8vIU7ww63mVu7gtR-kwKxNvkNOjw-gjgTY_vDE5ZdqU.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+  Horst Blackletter não foi obtido: a fonte não está disponível como arquivo
+  para download a partir do protótipo Framer público (não é carregada como
+  web font ali). Até que o .woff2 real seja enviado, o wordmark usa a
+  variável --font-wordmark com fallback serifado — ver docs/decisions.
+  NÃO declarar @font-face apontando para public/fonts/Horst-Blackletter.woff2
+  enquanto o arquivo não existir: um 404 nessa rota faz o navegador tentar
+  reinterpretar o HTML de erro como fonte a cada uso, gerando ruído no console.
+  Quando o arquivo real for adicionado, reative o bloco abaixo.
+*/
+/*
+@font-face {
+  font-family: "Horst Blackletter";
+  src: url("/fonts/Horst-Blackletter.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
