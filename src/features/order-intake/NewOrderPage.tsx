@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase/client";
 
 type Step = "paste" | "review" | "result";
 type ConfirmResult =
-  | { ok: true; orderNumber: number; couponWarning?: string }
+  | { ok: true; orderNumber: number; couponWarning?: string; shippingWarning?: string }
   | { ok: false; reason: string };
 
 function emptyForm(originalMessage: string): ReviewForm {
@@ -202,6 +202,19 @@ export function NewOrderPage() {
       await supabase.rpc("set_order_group", { p_order_id: data.order_id, p_group_id: groupId });
     }
 
+    let shippingWarning: string | undefined;
+    try {
+      const { data: shippingResult, error: shippingError } = await supabase.functions.invoke(
+        "send-to-shipping",
+        { body: { order_id: data.order_id } },
+      );
+      if (shippingError || !shippingResult?.ok) {
+        shippingWarning = "Não deu pra enviar pra fila de etiquetas agora — confira depois no pedido.";
+      }
+    } catch {
+      shippingWarning = "Não deu pra enviar pra fila de etiquetas agora — confira depois no pedido.";
+    }
+
     let couponWarning: string | undefined;
     if (form.couponCode.trim()) {
       try {
@@ -220,7 +233,7 @@ export function NewOrderPage() {
       }
     }
 
-    setResult({ ok: true, orderNumber: data.public_number, couponWarning });
+    setResult({ ok: true, orderNumber: data.public_number, couponWarning, shippingWarning });
     setStep("result");
   }
 
@@ -238,6 +251,9 @@ export function NewOrderPage() {
             </p>
             {result.couponWarning && (
               <p className="mt-2 text-sm text-warning">{result.couponWarning}</p>
+            )}
+            {result.shippingWarning && (
+              <p className="mt-2 text-sm text-warning">{result.shippingWarning}</p>
             )}
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
