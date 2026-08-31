@@ -3,7 +3,12 @@ import type { OrderSummary } from "@/lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { formatCurrency } from "@/lib/formatting/mask";
 
-export function OrderCard({ order, itemsSummary }: OrderSummary) {
+interface OrderCardProps extends OrderSummary {
+  onRemove?: (order: OrderSummary["order"]) => void;
+  removeLabel?: string;
+}
+
+export function OrderCard({ order, itemsSummary, onRemove, removeLabel = "Remover" }: OrderCardProps) {
   const isCreated = order.status === "created";
 
   return (
@@ -39,6 +44,18 @@ export function OrderCard({ order, itemsSummary }: OrderSummary) {
           <p className="text-xs text-text-muted">{order.failure_reason}</p>
         )}
       </div>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            onRemove(order);
+          }}
+          className="mt-3 text-xs text-text-muted hover:text-danger"
+        >
+          {removeLabel}
+        </button>
+      )}
     </Link>
   );
 }

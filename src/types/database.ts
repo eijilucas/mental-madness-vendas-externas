@@ -35,7 +35,16 @@ export interface Order {
   failure_reason: string | null;
   coupon_code: string | null;
   coupon_sale_status: "none" | "registered" | "not_found" | "error";
+  group_id: string | null;
   created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderGroup {
+  id: string;
+  name: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }

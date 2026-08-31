@@ -6,9 +6,11 @@ import { formatCurrency } from "@/lib/formatting/mask";
 
 interface OrderTableProps {
   orders: OrderSummary[];
+  onRemove?: (order: OrderSummary["order"]) => void;
+  removeLabel?: string;
 }
 
-export function OrderTable({ orders }: OrderTableProps) {
+export function OrderTable({ orders, onRemove, removeLabel = "Remover" }: OrderTableProps) {
   const navigate = useNavigate();
 
   return (
@@ -22,6 +24,7 @@ export function OrderTable({ orders }: OrderTableProps) {
               <th className="px-5 py-3 font-medium">Cliente / Itens</th>
               <th className="px-5 py-3 font-medium">Valor</th>
               <th className="px-5 py-3 font-medium">Situação</th>
+              {onRemove && <th className="px-5 py-3 font-medium" />}
             </tr>
           </thead>
           <tbody>
@@ -63,6 +66,20 @@ export function OrderTable({ orders }: OrderTableProps) {
                     )}
                   </div>
                 </td>
+                {onRemove && (
+                  <td className="px-5 py-4 text-right">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemove(order);
+                      }}
+                      className="text-xs text-text-muted hover:text-danger"
+                    >
+                      {removeLabel}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -71,7 +88,7 @@ export function OrderTable({ orders }: OrderTableProps) {
 
       <div className="flex flex-col gap-3 sm:hidden">
         {orders.map((item) => (
-          <OrderCard key={item.order.id} {...item} />
+          <OrderCard key={item.order.id} {...item} onRemove={onRemove} removeLabel={removeLabel} />
         ))}
       </div>
     </>

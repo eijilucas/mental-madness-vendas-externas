@@ -165,4 +165,66 @@ ciclano2@example.com
     expect(result.cpf?.valid).toBe(true);
     expect(result.phone?.valid).toBe(true);
   });
+
+  it("tamanho colado no meio do nome do produto, sem separador nenhum", () => {
+    // Caso real: cliente escreveu "casaco Hell M Hounds" — o "M" ficou
+    // intercalado no meio do nome do drop, sem vírgula nem "tamanho".
+    const message = `Peças, cores e tamanhos: casaco Hell M Hounds
+Nome e Sobrenome: Fulano de Tal
+CEP: 14169310
+Endereço: Rua Exemplo
+Bairro: Jardim Exemplo
+Número da casa: 100
+Cidade: Cidade Exemplo
+Estado: SP
+E-mail: fulano@example.com
+CPF: 111.444.777-35
+Número de telefone: 16999998888`;
+
+    const result = parseWhatsappMessage(message);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].size).toBe("M");
+    expect(result.items[0].productQuery).toBe("casaco Hell Hounds");
+  });
+
+  it("extrai quantidade quando o cliente escreve (2x, x2, 2 unidades ou número solto)", () => {
+    const x2 = parseWhatsappMessage(
+      "Peças, cores e tamanhos: calça Hell Hounds tamanho M x2\nNome e Sobrenome: Fulano",
+    );
+    expect(x2.items[0].quantity).toBe(2);
+    expect(x2.items[0].productQuery).toMatch(/calça hell hounds/i);
+
+    const doisX = parseWhatsappMessage(
+      "Peças, cores e tamanhos: 2x calça Hell Hounds tamanho M\nNome e Sobrenome: Fulano",
+    );
+    expect(doisX.items[0].quantity).toBe(2);
+
+    const unidades = parseWhatsappMessage(
+      "Peças, cores e tamanhos: calça Hell Hounds tamanho M, 3 unidades\nNome e Sobrenome: Fulano",
+    );
+    expect(unidades.items[0].quantity).toBe(3);
+
+    const numeroSolto = parseWhatsappMessage(
+      "Peças, cores e tamanhos: 2 calças Hell Hounds tamanho M\nNome e Sobrenome: Fulano",
+    );
+    expect(numeroSolto.items[0].quantity).toBe(2);
+    expect(numeroSolto.items[0].productQuery).toMatch(/cal[cç]as hell hounds/i);
+
+    // sem nenhum indício de quantidade → padrão 1, comportamento de sempre.
+    const semQuantidade = parseWhatsappMessage(
+      "Peças, cores e tamanhos: calça Hell Hounds tamanho M\nNome e Sobrenome: Fulano",
+    );
+    expect(semQuantidade.items[0].quantity).toBe(1);
+  });
+
+  it("não adivinha tamanho no meio quando há mais de um token ambíguo no trecho", () => {
+    // Duas palavras que batem no padrão de tamanho ("M" e "G") no mesmo
+    // trecho — ambíguo demais pra escolher uma, então não adivinha nenhuma.
+    const result = parseWhatsappMessage(
+      "Peças, cores e tamanhos: casaco Hell M G Hounds\nNome e Sobrenome: Fulano",
+    );
+    expect(result.items[0].size).toBeNull();
+    expect(result.items[0].productQuery).toBe("casaco Hell M G Hounds");
+  });
 });

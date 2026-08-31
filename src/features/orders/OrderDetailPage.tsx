@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { useOrder } from "@/lib/supabase/queries";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useDeleteOrder, useOrder } from "@/lib/supabase/queries";
 import {
   formatCurrency,
   formatCep,
@@ -25,12 +26,23 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export function OrderDetailPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
+  const navigate = useNavigate();
   const [showOriginal, setShowOriginal] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { data, isLoading, isError, refetch } = useOrder(orderNumber);
+  const deleteOrder = useDeleteOrder();
   const { profile } = useAuth();
   // Dado completo (CPF/telefone) só para quem pode agir sobre o pedido —
   // viewer vê mascarado, mesma regra de LGPD já usada nas listagens (§17).
   const canSeeFullPii = profile?.role === "admin" || profile?.role === "operator";
+  // Editar/excluir também ficam restritos a admin/operator, mesma trava.
+  const canManage = canSeeFullPii;
+
+  async function handleDelete() {
+    if (!data) return;
+    await deleteOrder.mutateAsync(data.order.id);
+    navigate("/pedidos");
+  }
 
   if (isLoading) {
     return (
@@ -76,9 +88,29 @@ export function OrderDetailPage() {
         title={`Pedido #${order.public_number}`}
         description="Detalhes completos da venda externa."
         actions={
-          <StatusBadge tone={isCreated ? "success" : "danger"}>
-            {isCreated ? "Pedido criado" : "Pedido não criado"}
-          </StatusBadge>
+          <div className="flex items-center gap-3">
+            <StatusBadge tone={isCreated ? "success" : "danger"}>
+              {isCreated ? "Pedido criado" : "Pedido não criado"}
+            </StatusBadge>
+            {canManage && (
+              <>
+                <Link
+                  to={`/pedidos/${order.public_number}/editar`}
+                  className="rounded-md border border-border px-4 py-2.5 text-sm text-text hover:border-text"
+                >
+                  Editar
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={deleteOrder.isPending}
+                  className="rounded-md border border-danger/40 px-4 py-2.5 text-sm text-danger hover:border-danger disabled:opacity-50"
+                >
+                  {deleteOrder.isPending ? "Excluindo…" : "Excluir"}
+                </button>
+              </>
+            )}
+          </div>
         }
       />
 
@@ -224,6 +256,17 @@ export function OrderDetailPage() {
           )}
         </section>
       )}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Excluir pedido"
+        message={`Excluir o pedido #${order.public_number} de ${order.customer_name}? Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        danger
+        pending={deleteOrder.isPending}
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

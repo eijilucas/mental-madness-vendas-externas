@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { parseWhatsappMessage, type ParsedField } from "@/lib/parser/parseWhatsappMessage";
-import { isValidCep, isValidCpf, isValidEmail, isValidPhone, normalizeUf, onlyDigits } from "@/lib/parser/normalizers";
-import { ReviewField } from "./ReviewField";
-import type { FieldStatus, OrderSource, ReviewForm, ReviewItem } from "./reviewTypes";
-import { useCatalog } from "@/lib/supabase/queries";
+import { normalizeUf, onlyDigits } from "@/lib/parser/normalizers";
+import { OrderReviewFields } from "./OrderReviewFields";
+import { validateReviewForm } from "./validateReviewForm";
+import type { FieldStatus, ReviewForm, ReviewItem } from "./reviewTypes";
+import { useCatalog, useOrderGroup } from "@/lib/supabase/queries";
 import { matchCatalogItem } from "@/lib/catalog/matchProduct";
 import { supabase } from "@/lib/supabase/client";
 
@@ -35,12 +36,6 @@ function emptyForm(originalMessage: string): ReviewForm {
   };
 }
 
-const SOURCE_LABELS: Record<OrderSource, string> = {
-  whatsapp: "WhatsApp",
-  discord: "Discord",
-  instagram: "Instagram",
-};
-
 function fieldToStatus(field: ParsedField | null): FieldStatus {
   if (!field) return "missing";
   if (!field.valid) return field.confidence === "baixa" ? "ambiguous" : "invalid";
@@ -48,6 +43,10 @@ function fieldToStatus(field: ParsedField | null): FieldStatus {
 }
 
 export function NewOrderPage() {
+  const [searchParams] = useSearchParams();
+  const groupId = searchParams.get("drop");
+  const { data: group } = useOrderGroup(groupId ?? undefined);
+
   const [step, setStep] = useState<Step>("paste");
   const [message, setMessage] = useState("");
   const [form, setForm] = useState<ReviewForm>(emptyForm(""));
@@ -135,31 +134,7 @@ export function NewOrderPage() {
     setStatuses((prev) => ({ ...prev, [key]: "corrected" }));
   }
 
-  const validation = useMemo(() => {
-    const errors: string[] = [];
-    if (!form.customerName.trim()) errors.push("Nome do cliente é obrigatório.");
-    if (!isValidCpf(form.cpf)) errors.push("CPF inválido.");
-    if (!isValidCep(form.cep)) errors.push("CEP não encontrado.");
-    if (!form.street.trim()) errors.push("Endereço é obrigatório.");
-    if (!form.number.trim()) errors.push("Número do endereço não informado.");
-    if (!form.district.trim()) errors.push("Bairro é obrigatório.");
-    if (!form.city.trim()) errors.push("Cidade é obrigatória.");
-    if (!normalizeUf(form.state)) errors.push("Selecione um estado válido.");
-    if (!isValidPhone(form.phone)) errors.push("Telefone inválido.");
-    if (form.email && !isValidEmail(form.email)) errors.push("E-mail inválido.");
-    if (
-      (form.source === "discord" || form.source === "instagram") &&
-      !form.sourceUsername.trim()
-    ) {
-      errors.push(`Informe o usuário do ${SOURCE_LABELS[form.source]}.`);
-    }
-    if (form.items.length === 0) errors.push("Adicione ao menos um item.");
-    form.items.forEach((item, i) => {
-      if (!item.size) errors.push(`Item ${i + 1}: selecione uma variante válida.`);
-      if (!(item.unitPrice > 0)) errors.push(`Item ${i + 1}: informe o preço.`);
-    });
-    return errors;
-  }, [form]);
+  const validation = useMemo(() => validateReviewForm(form), [form]);
 
   async function handleConfirm() {
     if (validation.length > 0 || submitting) return;
@@ -223,6 +198,10 @@ export function NewOrderPage() {
       return;
     }
 
+    if (groupId) {
+      await supabase.rpc("set_order_group", { p_order_id: data.order_id, p_group_id: groupId });
+    }
+
     let couponWarning: string | undefined;
     if (form.couponCode.trim()) {
       try {
@@ -274,6 +253,14 @@ export function NewOrderPage() {
               >
                 Registrar outro pedido
               </button>
+              {groupId && (
+                <Link
+                  to={`/drops/${groupId}`}
+                  className="rounded-md border border-border px-5 py-3 text-sm text-text hover:border-text"
+                >
+                  Voltar ao drop
+                </Link>
+              )}
             </div>
           </div>
         ) : (
@@ -301,7 +288,11 @@ export function NewOrderPage() {
     <div className="flex flex-col gap-8 pb-24">
       <PageHeader
         title="Novo pedido"
-        description="Transforme uma mensagem do WhatsApp em um pedido revisado."
+        description={
+          group
+            ? `Transforme uma mensagem do WhatsApp em um pedido revisado. Será adicionado ao drop "${group.name}".`
+            : "Transforme uma mensagem do WhatsApp em um pedido revisado."
+        }
       />
 
       <div className="flex gap-2 text-xs uppercase tracking-wide text-text-muted">
@@ -347,223 +338,7 @@ export function NewOrderPage() {
 
       {step === "review" && (
         <>
-          <section className="rounded-md border border-border bg-surface p-6">
-            <h2 className="mb-4 text-base font-semibold text-text">Origem</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="field-origem" className="mb-1.5 block text-sm text-text-muted">
-                  Canal
-                </label>
-                <select
-                  id="field-origem"
-                  value={form.source}
-                  onChange={(e) => updateField("source", e.target.value as OrderSource)}
-                  className="w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text focus-visible:border-text"
-                >
-                  <option value="whatsapp">WhatsApp</option>
-                  <option value="discord">Discord</option>
-                  <option value="instagram">Instagram</option>
-                </select>
-              </div>
-              {form.source === "whatsapp" ? (
-                <div>
-                  <label className="mb-1.5 block text-sm text-text-muted">
-                    Últimos 4 dígitos do telefone
-                  </label>
-                  <div className="w-full rounded-md border border-border bg-bg px-4 py-3 text-sm text-text-muted">
-                    {onlyDigits(form.phone).slice(-4) || "— preencha o telefone —"}
-                  </div>
-                </div>
-              ) : (
-                <ReviewField
-                  label={`Usuário do ${SOURCE_LABELS[form.source]}`}
-                  value={form.sourceUsername}
-                  status={form.sourceUsername.trim() ? "recognized" : "missing"}
-                  onChange={(v) => updateField("sourceUsername", v)}
-                />
-              )}
-              <div>
-                <label htmlFor="field-cupom" className="mb-1.5 block text-sm text-text-muted">
-                  Cupom utilizado (opcional)
-                </label>
-                <input
-                  id="field-cupom"
-                  type="text"
-                  value={form.couponCode}
-                  onChange={(e) => updateField("couponCode", e.target.value.toUpperCase())}
-                  placeholder="Ex.: DARK"
-                  className="w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-text-disabled focus-visible:border-text"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-md border border-border bg-surface p-6">
-            <h2 className="mb-4 text-base font-semibold text-text">Cliente</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <ReviewField
-                label="Nome completo"
-                value={form.customerName}
-                status={statuses.customerName ?? "missing"}
-                onChange={(v) => updateField("customerName", v)}
-              />
-              <ReviewField
-                label="CPF"
-                value={form.cpf}
-                status={statuses.cpf ?? "missing"}
-                onChange={(v) => updateField("cpf", v)}
-                errorMessage="CPF inválido."
-              />
-            </div>
-          </section>
-
-          <section className="rounded-md border border-border bg-surface p-6">
-            <h2 className="mb-4 text-base font-semibold text-text">Contato</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <ReviewField
-                label="Telefone"
-                value={form.phone}
-                status={statuses.phone ?? "missing"}
-                onChange={(v) => updateField("phone", v)}
-                errorMessage="Telefone inválido."
-              />
-              <ReviewField
-                label="E-mail"
-                value={form.email}
-                status={statuses.email ?? "missing"}
-                onChange={(v) => updateField("email", v)}
-                errorMessage="E-mail inválido."
-              />
-            </div>
-          </section>
-
-          <section className="rounded-md border border-border bg-surface p-6">
-            <h2 className="mb-4 text-base font-semibold text-text">Endereço</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <ReviewField
-                label="CEP"
-                value={form.cep}
-                status={statuses.cep ?? "missing"}
-                onChange={(v) => updateField("cep", v)}
-                errorMessage="CEP não encontrado."
-              />
-              <ReviewField
-                label="Estado"
-                value={form.state}
-                status={statuses.state ?? "missing"}
-                onChange={(v) => updateField("state", v)}
-              />
-              <ReviewField
-                label="Endereço"
-                value={form.street}
-                status={statuses.street ?? "missing"}
-                onChange={(v) => updateField("street", v)}
-              />
-              <ReviewField
-                label="Número"
-                value={form.number}
-                status={statuses.number ?? "missing"}
-                onChange={(v) => updateField("number", v)}
-                errorMessage="Número do endereço não informado."
-              />
-              <ReviewField
-                label="Bairro"
-                value={form.district}
-                status={statuses.district ?? "missing"}
-                onChange={(v) => updateField("district", v)}
-              />
-              <ReviewField
-                label="Cidade"
-                value={form.city}
-                status={statuses.city ?? "missing"}
-                onChange={(v) => updateField("city", v)}
-              />
-              <ReviewField
-                label="Complemento"
-                value={form.complement}
-                status="recognized"
-                onChange={(v) => updateField("complement", v)}
-              />
-            </div>
-          </section>
-
-          <section className="rounded-md border border-border bg-surface p-6">
-            <h2 className="mb-4 text-base font-semibold text-text">Produtos</h2>
-            {form.items.length === 0 ? (
-              <p className="text-sm text-text-muted">
-                Nenhum item reconhecido — adicione manualmente antes de continuar.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {form.items.map((item, index) => {
-                  const match = matchCatalogItem(item.productQuery, item.size, catalog ?? []);
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-md border border-border p-4"
-                    >
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                        <ReviewField
-                          label="Produto (texto original)"
-                          value={item.productQuery}
-                          status="ambiguous"
-                          onChange={(v) => {
-                            const items = [...form.items];
-                            items[index] = { ...item, productQuery: v };
-                            updateField("items", items);
-                          }}
-                        />
-                        <ReviewField
-                          label="Tamanho"
-                          value={item.size}
-                          status={item.size ? "recognized" : "missing"}
-                          onChange={(v) => {
-                            const items = [...form.items];
-                            items[index] = { ...item, size: v };
-                            updateField("items", items);
-                          }}
-                        />
-                        <ReviewField
-                          label="Quantidade"
-                          value={String(item.quantity)}
-                          status="recognized"
-                          type="number"
-                          onChange={(v) => {
-                            const items = [...form.items];
-                            items[index] = { ...item, quantity: Number(v) || 1 };
-                            updateField("items", items);
-                          }}
-                        />
-                        <ReviewField
-                          label="Preço unitário"
-                          value={item.unitPrice ? String(item.unitPrice) : ""}
-                          status={item.unitPrice > 0 ? "recognized" : "missing"}
-                          type="number"
-                          onChange={(v) => {
-                            const items = [...form.items];
-                            items[index] = { ...item, unitPrice: Number(v) || 0 };
-                            updateField("items", items);
-                          }}
-                        />
-                      </div>
-                      <p className="mt-2 text-xs text-text-muted">
-                        {match
-                          ? `Casado com: ${match.product.name} (${match.variantKey})`
-                          : "Sem correspondência no catálogo ainda — o pedido será marcado como não criado se continuar assim."}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-md border border-border bg-surface p-6 text-left">
-            <h2 className="mb-2 text-base font-semibold text-text">Mensagem original</h2>
-            <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-sm text-text-muted">
-              {form.originalMessage}
-            </pre>
-          </section>
+          <OrderReviewFields form={form} statuses={statuses} catalog={catalog} updateField={updateField} />
 
           {validation.length > 0 && (
             <section className="rounded-md border border-warning/40 bg-surface p-5 text-left">

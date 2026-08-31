@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Visão geral", end: true },
   { to: "/novo-pedido", label: "Novo pedido" },
   { to: "/pedidos", label: "Pedidos" },
+  { to: "/drops", label: "Drops" },
   { to: "/integracoes", label: "Central de integrações" },
   { to: "/catalogo", label: "Catálogo" },
   { to: "/configuracoes", label: "Configurações" },

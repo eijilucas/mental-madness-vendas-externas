@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./client";
-import type { Order, OrderAddress, OrderItem } from "@/types/database";
+import type { Order, OrderAddress, OrderGroup, OrderItem } from "@/types/database";
 import type { CatalogSnapshotProduct } from "@/lib/catalogSnapshot";
 
 export interface OrderSummary {
@@ -16,33 +16,171 @@ function buildItemsSummary(items: Pick<OrderItem, "product_name" | "size">[]): s
   return `${items.length} peças`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchOrderSummaries(applyFilter?: (query: any) => any): Promise<OrderSummary[]> {
+  let query = supabase.from("orders").select("*").order("created_at", { ascending: false });
+  if (applyFilter) query = applyFilter(query);
+  const { data: orders, error } = await query;
+  if (error) throw error;
+
+  const orderIds = ((orders ?? []) as unknown as Order[]).map((o) => o.id);
+  const { data: items, error: itemsError } = orderIds.length
+    ? await supabase.from("order_items").select("order_id, product_name, size").in("order_id", orderIds)
+    : { data: [], error: null };
+  if (itemsError) throw itemsError;
+
+  const itemsByOrder = new Map<string, typeof items>();
+  for (const item of items ?? []) {
+    const list = itemsByOrder.get(item.order_id) ?? [];
+    list.push(item);
+    itemsByOrder.set(item.order_id, list);
+  }
+
+  return ((orders ?? []) as unknown as Order[]).map((order) => ({
+    order,
+    itemsSummary: buildItemsSummary(itemsByOrder.get(order.id) ?? []),
+  }));
+}
+
 export function useOrders() {
   return useQuery({
     queryKey: ["orders"],
-    queryFn: async (): Promise<OrderSummary[]> => {
-      const { data: orders, error } = await supabase
-        .from("orders")
+    queryFn: () => fetchOrderSummaries(),
+  });
+}
+
+// Pedidos de um grupo específico — usado na página de detalhe do grupo.
+export function useOrdersByGroup(groupId: string | undefined) {
+  return useQuery({
+    queryKey: ["orders", "group", groupId],
+    enabled: !!groupId,
+    queryFn: () => fetchOrderSummaries((q) => q.eq("group_id", groupId)),
+  });
+}
+
+// Pedidos que ainda não pertencem a nenhum grupo — usado no "Adicionar
+// pedidos" dentro de um grupo.
+export function useUngroupedOrders() {
+  return useQuery({
+    queryKey: ["orders", "ungrouped"],
+    queryFn: () => fetchOrderSummaries((q) => q.is("group_id", null)),
+  });
+}
+
+export function useOrderGroups() {
+  return useQuery({
+    queryKey: ["order-groups"],
+    queryFn: async (): Promise<Array<{ group: OrderGroup; orderCount: number }>> => {
+      const { data: groups, error } = await supabase
+        .from("order_groups")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      const orderIds = (orders ?? []).map((o) => o.id);
-      const { data: items, error: itemsError } = orderIds.length
-        ? await supabase.from("order_items").select("order_id, product_name, size").in("order_id", orderIds)
-        : { data: [], error: null };
-      if (itemsError) throw itemsError;
+      const { data: orders, error: ordersError } = await supabase
+        .from("orders")
+        .select("group_id")
+        .not("group_id", "is", null);
+      if (ordersError) throw ordersError;
 
-      const itemsByOrder = new Map<string, typeof items>();
-      for (const item of items ?? []) {
-        const list = itemsByOrder.get(item.order_id) ?? [];
-        list.push(item);
-        itemsByOrder.set(item.order_id, list);
+      const countByGroup = new Map<string, number>();
+      for (const o of orders ?? []) {
+        const key = (o as { group_id: string }).group_id;
+        countByGroup.set(key, (countByGroup.get(key) ?? 0) + 1);
       }
 
-      return (orders ?? []).map((order) => ({
-        order: order as unknown as Order,
-        itemsSummary: buildItemsSummary(itemsByOrder.get(order.id) ?? []),
+      return ((groups ?? []) as unknown as OrderGroup[]).map((group) => ({
+        group,
+        orderCount: countByGroup.get(group.id) ?? 0,
       }));
+    },
+  });
+}
+
+export function useOrderGroup(groupId: string | undefined) {
+  return useQuery({
+    queryKey: ["order-group", groupId],
+    enabled: !!groupId,
+    queryFn: async (): Promise<OrderGroup | null> => {
+      const { data, error } = await supabase
+        .from("order_groups")
+        .select("*")
+        .eq("id", groupId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as OrderGroup | null;
+    },
+  });
+}
+
+export function useCreateOrderGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase.from("order_groups").insert({ name }).select().single();
+      if (error) throw error;
+      return data as unknown as OrderGroup;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["order-groups"] }),
+  });
+}
+
+export function useRenameOrderGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ groupId, name }: { groupId: string; name: string }) => {
+      const { error } = await supabase.from("order_groups").update({ name }).eq("id", groupId);
+      if (error) throw error;
+    },
+    onSuccess: (_data, { groupId }) => {
+      queryClient.invalidateQueries({ queryKey: ["order-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["order-group", groupId] });
+    },
+  });
+}
+
+export function useDeleteOrderGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (groupId: string) => {
+      const { error } = await supabase.from("order_groups").delete().eq("id", groupId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["order-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}
+
+// Associa (groupId) ou remove (groupId null) um pedido de um grupo.
+export function useSetOrderGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orderId, groupId }: { orderId: string; groupId: string | null }) => {
+      const { error } = await supabase.rpc("set_order_group", {
+        p_order_id: orderId,
+        p_group_id: groupId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order-groups"] });
+    },
+  });
+}
+
+export function useDeleteOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase.rpc("delete_order", { p_order_id: orderId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order-groups"] });
     },
   });
 }

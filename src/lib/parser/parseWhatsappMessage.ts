@@ -191,7 +191,52 @@ function extractItemSize(text: string): { size: string | null; cleaned: string }
     return { size: normalizeSize(match[1]), cleaned: text.slice(0, match.index).trim() };
   }
 
+  // Último recurso: tamanho solto no MEIO do texto, sem separador nenhum
+  // (ex.: "casaco Hell M Hounds" — cliente intercalou o tamanho no meio do
+  // nome do drop). Só arriscamos isso quando existe exatamente UMA palavra
+  // isolada de tamanho no trecho inteiro — se aparecer mais de uma ou
+  // nenhuma, é ambíguo demais pra adivinhar.
+  const allMatches = [...text.matchAll(new RegExp(`\\b${SIZE_WORD}\\b`, "gi"))];
+  if (allMatches.length === 1) {
+    const only = allMatches[0];
+    const start = only.index ?? 0;
+    const cleaned = (text.slice(0, start) + text.slice(start + only[0].length))
+      .replace(/\s+/g, " ")
+      .trim();
+    return { size: normalizeSize(only[1]), cleaned };
+  }
+
   return { size: null, cleaned: text.trim() };
+}
+
+// Padrões de quantidade, do mais específico pro mais genérico: "x2"/"2x",
+// "2 unidades", e por último um número solto no início do trecho (ex.: "2
+// calças Hell Hounds"). Sempre 1 quando nada bate — nunca deixamos vazio,
+// pra não quebrar o resto do fluxo que espera um número.
+const QUANTITY_PATTERNS = [/\bx\s*(\d{1,2})\b/i, /\b(\d{1,2})\s*x\b/i, /\b(\d{1,2})\s*unidades?\b/i];
+
+function extractItemQuantity(text: string): { quantity: number; cleaned: string } {
+  for (const pattern of QUANTITY_PATTERNS) {
+    const match = text.match(pattern);
+    if (match && match.index !== undefined) {
+      const qty = Number(match[1]);
+      const cleaned = (text.slice(0, match.index) + text.slice(match.index + match[0].length))
+        .replace(/\s+/g, " ")
+        .trim();
+      if (qty > 0) return { quantity: qty, cleaned };
+    }
+  }
+
+  // Número solto bem no início do trecho ("2 calças Hell Hounds") — só como
+  // último recurso, e só quando sobra texto de produto depois do número
+  // (senão "2" sozinho não é uma quantidade, é o próprio texto do produto).
+  const leading = text.match(/^(\d{1,2})\s+(\S.*)$/);
+  if (leading) {
+    const qty = Number(leading[1]);
+    if (qty > 0) return { quantity: qty, cleaned: leading[2].trim() };
+  }
+
+  return { quantity: 1, cleaned: text.trim() };
 }
 
 function parseItems(itemsText: string): ParsedItemGuess[] {
@@ -203,26 +248,29 @@ function parseItems(itemsText: string): ParsedItemGuess[] {
   const items: ParsedItemGuess[] = [];
 
   for (const chunk of rawChunks) {
-    const { size, cleaned } = extractItemSize(chunk);
+    const { size, cleaned: afterSize } = extractItemSize(chunk);
+    const { quantity, cleaned } = extractItemQuantity(afterSize);
 
-    // Um trecho que só continha o tamanho (ex.: "Calça X, tamanho M" vira os
-    // chunks ["Calça X", "tamanho M"]) pertence ao item anterior, não é um
-    // segundo produto.
+    // Um trecho que não sobrou nenhum texto de produto depois de tirar
+    // tamanho/quantidade (ex.: "Calça X, tamanho M" ou "Calça X, 3
+    // unidades" viram chunks ["Calça X", "tamanho M"/"3 unidades"])
+    // pertence ao item anterior, não é um segundo produto.
     if (!cleaned && items.length > 0) {
       const previous = items[items.length - 1];
       previous.size = previous.size ?? size;
+      if (quantity !== 1) previous.quantity = quantity;
       previous.rawText = `${previous.rawText}, ${chunk}`;
       continue;
     }
 
-    items.push({ rawText: chunk, productQuery: cleaned || chunk, size, quantity: 1 });
+    items.push({ rawText: chunk, productQuery: cleaned || afterSize || chunk, size, quantity });
   }
 
   return items;
 }
 
 const PRODUCT_KEYWORDS =
-  /\b(cal[cç]a|camiseta|moletom|jaqueta|bon[eé]|vestido|shorts|regata|casaco|blusa)\b/i;
+  /\b(cal[cç]as?|camisetas?|camisas?|camis[aã]o|compress[aã]o|compress[oõ]es|moleto[nm]s?|jaquetas?|bon[eé]s?|vestidos?|shorts?|bermudas?|regatas?|regatinhas?|casacos?|blusas?|blus[aã]o|blus[oõ]es)\b/i;
 const COMPLEMENT_KEYWORDS =
   /\b(port[aã]o|perto|pr[oó]ximo|apto|apartamento|bloco|fundos|esquina|refer[eê]ncia)\b/i;
 
