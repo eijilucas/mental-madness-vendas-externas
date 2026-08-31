@@ -3,6 +3,59 @@ import { supabase } from "./client";
 import type { Order, OrderAddress, OrderGroup, OrderItem } from "@/types/database";
 import type { CatalogSnapshotProduct } from "@/lib/catalogSnapshot";
 
+// Pedidos com pelo menos uma integração pra mostrar na Central de
+// Integrações — tem cupom informado (comissionamento) ou já tentou entrar
+// na fila de envio (todo pedido criado tenta, então isso é quase sempre).
+export function useIntegrationEvents() {
+  return useQuery({
+    queryKey: ["integration-events"],
+    queryFn: async (): Promise<Order[]> => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("status", "created")
+        .or("coupon_code.not.is.null,shipping_status.neq.pending")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as Order[];
+    },
+  });
+}
+
+export function useRetryShipping() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data, error } = await supabase.functions.invoke("send-to-shipping", {
+        body: { order_id: orderId },
+      });
+      if (error || !data?.ok) throw error ?? new Error("send-to-shipping failed");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integration-events"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}
+
+export function useRetryCouponSale() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orderId, couponCode }: { orderId: string; couponCode: string }) => {
+      const { data, error } = await supabase.functions.invoke("register-coupon-sale", {
+        body: { order_id: orderId, coupon_code: couponCode },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integration-events"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}
+
 export interface OrderSummary {
   order: Order;
   itemsSummary: string;

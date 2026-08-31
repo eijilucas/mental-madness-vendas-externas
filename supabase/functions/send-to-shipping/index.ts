@@ -127,11 +127,23 @@ Deno.serve(async (req: Request) => {
     const result = await res.json().catch(() => ({}));
     if (!res.ok) {
       console.error("Falha ao chamar mm-etiquetas:", result);
+      await adminClient
+        .from("orders")
+        .update({ shipping_status: "failed", shipping_last_error: JSON.stringify(result).slice(0, 500) })
+        .eq("id", order_id);
       return jsonResponse({ error: "etiquetas_call_failed", detail: result }, 502);
     }
+    await adminClient
+      .from("orders")
+      .update({ shipping_status: "sent", shipping_last_error: null })
+      .eq("id", order_id);
     return jsonResponse({ ok: true, ...result });
   } catch (err) {
     console.error("Falha ao chamar mm-etiquetas:", err);
+    await adminClient
+      .from("orders")
+      .update({ shipping_status: "failed", shipping_last_error: String(err).slice(0, 500) })
+      .eq("id", order_id);
     return jsonResponse({ error: "network_error" }, 502);
   }
 });

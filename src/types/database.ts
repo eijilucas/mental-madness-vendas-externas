@@ -35,6 +35,8 @@ export interface Order {
   failure_reason: string | null;
   coupon_code: string | null;
   coupon_sale_status: "none" | "registered" | "not_found" | "error";
+  shipping_status: "pending" | "sent" | "failed";
+  shipping_last_error: string | null;
   group_id: string | null;
   created_by: string;
   created_at: string;
