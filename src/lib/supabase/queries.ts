@@ -1,7 +1,66 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./client";
-import type { Order, OrderAddress, OrderGroup, OrderItem } from "@/types/database";
+import type { Order, OrderAddress, OrderGroup, OrderItem, Profile, UserRole } from "@/types/database";
 import type { CatalogSnapshotProduct } from "@/lib/catalogSnapshot";
+
+export interface ManagedUser extends Profile {
+  email: string | null;
+}
+
+// CRUD de operadores (admin-only, ver supabase/functions/manage-users) —
+// nunca chama auth.admin.* direto do navegador, só através da function.
+export function useUsersList() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: async (): Promise<ManagedUser[]> => {
+      const { data, error } = await supabase.functions.invoke("manage-users", {
+        body: { action: "list" },
+      });
+      if (error) throw error;
+      return data.users as ManagedUser[];
+    },
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { email: string; password: string; name: string; role: UserRole }) => {
+      const { data, error } = await supabase.functions.invoke("manage-users", {
+        body: { action: "create", ...input },
+      });
+      if (error || data?.error) throw new Error(data?.error ?? error?.message ?? "create_failed");
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; name?: string; role?: UserRole; active?: boolean }) => {
+      const { data, error } = await supabase.functions.invoke("manage-users", {
+        body: { action: "update", ...input },
+      });
+      if (error || data?.error) throw new Error(data?.error ?? error?.message ?? "update_failed");
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useResetUserPassword() {
+  return useMutation({
+    mutationFn: async (input: { id: string; password: string }) => {
+      const { data, error } = await supabase.functions.invoke("manage-users", {
+        body: { action: "reset_password", ...input },
+      });
+      if (error || data?.error) throw new Error(data?.error ?? error?.message ?? "reset_password_failed");
+      return data;
+    },
+  });
+}
 
 // Pedidos com pelo menos uma integração pra mostrar na Central de
 // Integrações — tem cupom informado (comissionamento) ou já tentou entrar

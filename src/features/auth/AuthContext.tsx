@@ -53,13 +53,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
-  async function loadProfile(userId: string) {
+  // Retorna false quando a conta foi desativada (profiles.active = false) —
+  // nesse caso já desloga na hora, ao contrário de deixar o profile
+  // "active: false" sentado no state sem efeito nenhum (era o que
+  // acontecia antes: o campo existia, mas nada olhava pra ele).
+  async function loadProfile(userId: string): Promise<boolean> {
     const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
-    setProfile((data as unknown as Profile) ?? null);
+    const nextProfile = (data as unknown as Profile) ?? null;
+    if (nextProfile && !nextProfile.active) {
+      await supabase.auth.signOut();
+      setSession(null);
+      setProfile(null);
+      return false;
+    }
+    setProfile(nextProfile);
+    return true;
   }
 
   async function signIn(email: string, password: string) {
@@ -70,8 +82,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error ? "E-mail ou senha inválidos." : null };
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { error: "E-mail ou senha inválidos." };
+    }
+    const isActive = await loadProfile(data.user.id);
+    if (!isActive) {
+      return { error: "Conta desativada — fale com um administrador." };
+    }
+    setSession(data.session);
+    return { error: null };
   }
 
   async function signOut() {
