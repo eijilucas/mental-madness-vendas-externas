@@ -93,11 +93,22 @@ export function buildTrackingEmailHtml(params: TrackingEmailParams): string {
 <![endif]-->
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet" type="text/css">
 <style>
+  :root { color-scheme: dark; supported-color-schemes: dark; }
   body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
   table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
   img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
   body { margin: 0; padding: 0; width: 100% !important; height: 100% !important; background-color: #000000; }
   a { text-decoration: none; }
+
+  /* Trava a paleta escura independente do tema do dispositivo — alguns
+     clientes (Gmail, Outlook.com) tentam "adaptar" a cor de fundo/texto
+     pro modo claro/escuro do sistema mesmo com um design já intencionalmente
+     escuro. Reafirmar as MESMAS cores dentro dos dois media queries (e não
+     só nos metas color-scheme/supported-color-schemes do <head>, que
+     alguns clientes ignoram) impede tanto a inversão quanto o clareamento. */
+  @media (prefers-color-scheme: light), (prefers-color-scheme: dark) {
+    body, .mm-bg { background-color: #000000 !important; }
+  }
 
   @media only screen and (max-width: 600px) {
     .mm-container { width: 100% !important; max-width: 100% !important; }
@@ -108,14 +119,14 @@ export function buildTrackingEmailHtml(params: TrackingEmailParams): string {
   }
 </style>
 </head>
-<body style="margin:0; padding:0; background-color:#000000;">
+<body style="margin:0; padding:0; background-color:#000000;" bgcolor="#000000">
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#000000; opacity:0;">
     Seu pedido já foi postado. Código de rastreio: ${trackingCode}.
   </div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#000000;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" class="mm-bg" style="background-color:#000000;">
     <tr>
-      <td align="center" style="padding: 48px 16px;">
+      <td align="center" bgcolor="#000000" class="mm-bg" style="padding: 48px 16px; background-color:#000000;">
 
         <table role="presentation" class="mm-container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
 
