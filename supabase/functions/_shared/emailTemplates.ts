@@ -24,6 +24,12 @@
 // ============================================================================
 
 const ASSET_BASE = "https://yriimdzhvohlqdgigbbg.supabase.co/storage/v1/object/public/email-assets";
+// Fundo preto sólido como IMAGEM (não CSS) — o algoritmo de dark-mode dos
+// clientes de e-mail reprocessa cor de CSS, mas não mexe em pixel de
+// imagem, então isso é a garantia mais forte de que o fundo nunca vira
+// claro. Continua atrás do bgcolor/background-color (que aparecem antes da
+// imagem carregar, ou se imagens estiverem bloqueadas).
+const BG_BLACK_URL = `${ASSET_BASE}/mental-madness-bg-black.png`;
 
 export const EMAIL_ASSET_CIDS = {
   mark: "mm-mark",
@@ -119,14 +125,14 @@ export function buildTrackingEmailHtml(params: TrackingEmailParams): string {
   }
 </style>
 </head>
-<body style="margin:0; padding:0; background-color:#000000;" bgcolor="#000000">
+<body style="margin:0; padding:0; background-color:#000000; background-image:url('${BG_BLACK_URL}'); background-repeat:repeat;" bgcolor="#000000" background="${BG_BLACK_URL}">
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#000000; opacity:0;">
     Seu pedido já foi postado. Código de rastreio: ${trackingCode}.
   </div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" class="mm-bg" style="background-color:#000000;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" background="${BG_BLACK_URL}" class="mm-bg" style="background-color:#000000; background-image:url('${BG_BLACK_URL}'); background-repeat:repeat;">
     <tr>
-      <td align="center" bgcolor="#000000" class="mm-bg" style="padding: 48px 16px; background-color:#000000;">
+      <td align="center" bgcolor="#000000" background="${BG_BLACK_URL}" class="mm-bg" style="padding: 48px 16px; background-color:#000000; background-image:url('${BG_BLACK_URL}'); background-repeat:repeat;">
 
         <table role="presentation" class="mm-container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
 
