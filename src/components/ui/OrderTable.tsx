@@ -3,6 +3,7 @@ import type { OrderSummary } from "@/lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { OrderCard } from "./OrderCard";
 import { formatCurrency } from "@/lib/formatting/mask";
+import { shippingStageLabel } from "@/lib/orders/shippingStage";
 
 interface OrderTableProps {
   orders: OrderSummary[];
@@ -63,6 +64,9 @@ export function OrderTable({ orders, onRemove, removeLabel = "Remover" }: OrderT
                       <span className="text-xs text-text-muted">
                         {order.failure_reason}
                       </span>
+                    )}
+                    {shippingStageLabel(order) && (
+                      <span className="text-xs text-text-muted">{shippingStageLabel(order)}</span>
                     )}
                   </div>
                 </td>

@@ -37,6 +37,22 @@ export interface Order {
   coupon_sale_status: "none" | "registered" | "not_found" | "error";
   shipping_status: "pending" | "sent" | "failed";
   shipping_last_error: string | null;
+  // Estágio real no pipeline de etiquetas do mm-etiquetas — null até o
+  // primeiro callback chegar (pedido ainda em fila de aprovação lá). Ver
+  // migração 0013 e docs/api-contracts/04-shipping-callback.md.
+  shipping_stage:
+    | "approved"
+    | "cart_created"
+    | "purchased"
+    | "label_generated"
+    | "tracking_ready"
+    | "tracking_synced"
+    | "held"
+    | "failed"
+    | "archived"
+    | null;
+  shipping_posted_at: string | null;
+  tracking_code: string | null;
   group_id: string | null;
   created_by: string;
   created_at: string;

@@ -8,8 +8,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useOrders } from "@/lib/supabase/queries";
+import { shippingTabs } from "@/lib/orders/shippingStage";
 
-type StatusFilter = "all" | "created" | "not_created";
+type StatusFilter = "all" | "fila_aprovacao" | "liberados" | "rastreio" | "postados" | "not_created";
 
 export function OrdersPage() {
   const [search, setSearch] = useState("");
@@ -18,7 +19,8 @@ export function OrdersPage() {
 
   const filtered = useMemo(() => {
     return (orders ?? []).filter(({ order }) => {
-      if (status !== "all" && order.status !== status) return false;
+      if (status === "not_created" && order.status !== "not_created") return false;
+      if (status !== "all" && status !== "not_created" && !shippingTabs(order).has(status)) return false;
       if (!search.trim()) return true;
       const term = search.trim().toLowerCase();
       return (
@@ -57,7 +59,10 @@ export function OrdersPage() {
           onChange={setStatus}
           options={[
             { value: "all", label: "Todos" },
-            { value: "created", label: "Criados" },
+            { value: "fila_aprovacao", label: "Fila de aprovação" },
+            { value: "liberados", label: "Liberados" },
+            { value: "rastreio", label: "Rastreio" },
+            { value: "postados", label: "Postados" },
             { value: "not_created", label: "Não criados" },
           ]}
         />

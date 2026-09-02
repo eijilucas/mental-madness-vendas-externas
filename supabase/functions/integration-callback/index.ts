@@ -2,16 +2,20 @@
 // Edge Function: integration-callback
 //
 // Recebe eventos de status de envio do mm-etiquetas (contrato em
-// docs/api-contracts/04-shipping-callback.md). Hoje só existe um emissor
-// real: manualTrackingSync, disparado quando o rastreio de um pedido
-// externo é liberado — evento "shipping.tracking_synced" com o código de
-// rastreio em metadata.trackingCode.
+// docs/api-contracts/04-shipping-callback.md). Três eventos:
 //
-// Ao receber isso: grava o código no pedido e manda um e-mail avisando o
-// cliente (via Resend), se o pedido tiver e-mail e ainda não tiver sido
-// avisado. Sem RESEND_API_KEY configurada, só loga e pula o envio — não
-// quebra o callback (o mm-etiquetas não deve ver isso como falha e ficar
-// retentando à toa).
+// - "shipping.status_changed": status bruto do orders_shipping de lá
+//   (approved/cart_created/.../tracking_synced/held/failed/archived) —
+//   grava em orders.shipping_stage, alimenta as abas Fila de aprovação/
+//   Liberados/Rastreio/Postados da tela de Pedidos.
+// - "shipping.posted": pedido postado na transportadora — grava
+//   orders.shipping_posted_at.
+// - "shipping.tracking_synced": rastreio liberado pro cliente — grava
+//   tracking_code (e shipping_stage, mesma info) e manda o e-mail de aviso
+//   via Resend, se o pedido tiver e-mail e ainda não tiver sido avisado.
+//   Sem RESEND_API_KEY configurada, só loga e pula o envio — não quebra o
+//   callback (o mm-etiquetas não deve ver isso como falha e ficar
+//   retentando à toa).
 //
 // Auth: HMAC-SHA256 hex do corpo bruto em X-Signature, secret
 // INTEGRATION_CALLBACK_SECRET compartilhado com o mm-etiquetas (ver
@@ -46,8 +50,18 @@ interface CallbackPayload {
     trackingCode?: string | null;
     labelUrl?: string | null;
     carrierTrackingUrl?: string | null;
+    postedAt?: string | null;
   };
 }
+
+// Mesmo enum do check constraint da coluna orders.shipping_stage
+// (migração 0013) — valida antes de gravar pra nunca quebrar o callback
+// com um 500 de constraint por causa de um status que a Vendas Externas
+// ainda não conhece (ex.: o mm-etiquetas ganhar um status novo no enum).
+const VALID_SHIPPING_STAGES = new Set([
+  "approved", "cart_created", "purchased", "label_generated",
+  "tracking_ready", "tracking_synced", "held", "failed", "archived",
+]);
 
 function log(fields: Record<string, unknown>, msg: string) {
   console.log(JSON.stringify({ msg, ...fields }));
@@ -144,6 +158,20 @@ Deno.serve(async (req: Request) => {
   }
 
   const trackingCode = body.metadata?.trackingCode ?? null;
+  const postedAt = body.metadata?.postedAt ?? null;
+
+  if (body.event === "shipping.status_changed" || body.event === "shipping.tracking_synced") {
+    const patch: Record<string, unknown> = {};
+    if (body.status && VALID_SHIPPING_STAGES.has(body.status)) patch.shipping_stage = body.status;
+    if (postedAt) patch.shipping_posted_at = postedAt;
+    if (Object.keys(patch).length > 0) {
+      await adminClient.from("orders").update(patch).eq("id", order.id);
+    }
+  }
+
+  if (body.event === "shipping.posted" && postedAt) {
+    await adminClient.from("orders").update({ shipping_posted_at: postedAt }).eq("id", order.id);
+  }
 
   if (body.event === "shipping.tracking_synced" && trackingCode) {
     await adminClient.from("orders").update({ tracking_code: trackingCode }).eq("id", order.id);

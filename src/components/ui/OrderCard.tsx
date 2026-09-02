@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { OrderSummary } from "@/lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { formatCurrency } from "@/lib/formatting/mask";
+import { shippingStageLabel } from "@/lib/orders/shippingStage";
 
 interface OrderCardProps extends OrderSummary {
   onRemove?: (order: OrderSummary["order"]) => void;
@@ -42,6 +43,9 @@ export function OrderCard({ order, itemsSummary, onRemove, removeLabel = "Remove
         </StatusBadge>
         {!isCreated && order.failure_reason && (
           <p className="text-xs text-text-muted">{order.failure_reason}</p>
+        )}
+        {shippingStageLabel(order) && (
+          <p className="text-xs text-text-muted">{shippingStageLabel(order)}</p>
         )}
       </div>
       {onRemove && (
