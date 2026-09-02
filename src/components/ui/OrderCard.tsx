@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { OrderSummary } from "@/lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { formatCurrency } from "@/lib/formatting/mask";
-import { shippingStageLabel } from "@/lib/orders/shippingStage";
+import { orderStatusBadge } from "@/lib/orders/shippingStage";
 
 interface OrderCardProps extends OrderSummary {
   onRemove?: (order: OrderSummary["order"]) => void;
@@ -11,6 +11,7 @@ interface OrderCardProps extends OrderSummary {
 
 export function OrderCard({ order, itemsSummary, onRemove, removeLabel = "Remover" }: OrderCardProps) {
   const isCreated = order.status === "created";
+  const badge = orderStatusBadge(order);
 
   return (
     <Link
@@ -38,14 +39,9 @@ export function OrderCard({ order, itemsSummary, onRemove, removeLabel = "Remove
         </div>
       </div>
       <div className="mt-4 flex flex-col items-start gap-1.5">
-        <StatusBadge tone={isCreated ? "success" : "danger"}>
-          {isCreated ? "Pedido criado" : "Não criado"}
-        </StatusBadge>
+        <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
         {!isCreated && order.failure_reason && (
           <p className="text-xs text-text-muted">{order.failure_reason}</p>
-        )}
-        {shippingStageLabel(order) && (
-          <p className="text-xs text-text-muted">{shippingStageLabel(order)}</p>
         )}
       </div>
       {onRemove && (

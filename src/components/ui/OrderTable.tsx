@@ -3,7 +3,7 @@ import type { OrderSummary } from "@/lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { OrderCard } from "./OrderCard";
 import { formatCurrency } from "@/lib/formatting/mask";
-import { shippingStageLabel } from "@/lib/orders/shippingStage";
+import { orderStatusBadge } from "@/lib/orders/shippingStage";
 
 interface OrderTableProps {
   orders: OrderSummary[];
@@ -57,16 +57,14 @@ export function OrderTable({ orders, onRemove, removeLabel = "Remover" }: OrderT
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex flex-col items-start gap-1">
-                    <StatusBadge tone={order.status === "created" ? "success" : "danger"}>
-                      {order.status === "created" ? "Pedido criado" : "Não criado"}
-                    </StatusBadge>
+                    {(() => {
+                      const badge = orderStatusBadge(order);
+                      return <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>;
+                    })()}
                     {order.status === "not_created" && order.failure_reason && (
                       <span className="text-xs text-text-muted">
                         {order.failure_reason}
                       </span>
-                    )}
-                    {shippingStageLabel(order) && (
-                      <span className="text-xs text-text-muted">{shippingStageLabel(order)}</span>
                     )}
                   </div>
                 </td>

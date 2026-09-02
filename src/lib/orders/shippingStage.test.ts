@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shippingStageLabel, shippingTabs } from "./shippingStage";
+import { orderStatusBadge, shippingStageLabel, shippingTabs } from "./shippingStage";
 import type { Order } from "@/types/database";
 
 function makeOrder(overrides: Partial<Order> = {}): Order {
@@ -110,5 +110,64 @@ describe("shippingStageLabel", () => {
         }),
       ),
     ).toBe("Cliente avisado por e-mail");
+  });
+});
+
+describe("orderStatusBadge", () => {
+  it("Não criado, tom danger, pra pedido que falhou na criação", () => {
+    expect(orderStatusBadge(makeOrder({ status: "not_created", shipping_status: "pending" }))).toEqual({
+      label: "Não criado",
+      tone: "danger",
+    });
+  });
+
+  it("Pedido criado, tom success, quando ainda não foi enviado pro mm-etiquetas", () => {
+    expect(orderStatusBadge(makeOrder({ shipping_status: "pending" }))).toEqual({
+      label: "Pedido criado",
+      tone: "success",
+    });
+  });
+
+  it("Fila de aprovação, tom warning, logo após o envio", () => {
+    expect(orderStatusBadge(makeOrder({ shipping_stage: null }))).toEqual({
+      label: "Fila de aprovação",
+      tone: "warning",
+    });
+  });
+
+  it("Pedido enviado, tom info, pros estágios iniciais de processamento", () => {
+    expect(orderStatusBadge(makeOrder({ shipping_stage: "cart_created" }))).toEqual({
+      label: "Pedido enviado",
+      tone: "info",
+    });
+  });
+
+  it("Rastreio emitido, tom info — o cenário que ficava escondido dentro de Liberados antes", () => {
+    expect(orderStatusBadge(makeOrder({ shipping_stage: "tracking_ready" }))).toEqual({
+      label: "Rastreio emitido",
+      tone: "info",
+    });
+    expect(orderStatusBadge(makeOrder({ shipping_stage: "tracking_synced" }))).toEqual({
+      label: "Rastreio emitido",
+      tone: "info",
+    });
+  });
+
+  it("Postado, tom success", () => {
+    expect(
+      orderStatusBadge(makeOrder({ shipping_stage: "label_generated", shipping_posted_at: "2026-09-01T10:00:00Z" })),
+    ).toEqual({ label: "Postado", tone: "success" });
+  });
+
+  it("Cliente avisado, tom success, tem prioridade sobre tudo", () => {
+    expect(
+      orderStatusBadge(
+        makeOrder({
+          shipping_stage: "tracking_synced",
+          shipping_posted_at: "2026-09-01T10:00:00Z",
+          tracking_notified_at: "2026-09-01T11:00:00Z",
+        }),
+      ),
+    ).toEqual({ label: "Cliente avisado", tone: "success" });
   });
 });

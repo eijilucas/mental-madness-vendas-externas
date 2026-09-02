@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colorsForSize, findCatalogProduct, matchCatalogItem } from "./matchProduct";
+import { colorsForSize, findCatalogProduct, findCatalogProductWithDetail, matchCatalogItem } from "./matchProduct";
 import { CATALOG_SNAPSHOT } from "@/lib/catalogSnapshot";
 
 describe("matchCatalogItem", () => {
@@ -207,6 +207,44 @@ describe("matchCatalogItem", () => {
 
     it("retorna null quando nada bate", () => {
       expect(findCatalogProduct("Produto que não existe de jeito nenhum", CATALOG_SNAPSHOT)).toBeNull();
+    });
+
+    // Bug real encontrado em produção: "calça stitched normal" (cliente
+    // pedindo a versão normal, não a de cores novas) casava SILENCIOSAMENTE
+    // com "Calça Reta Stitched (NOVAS CORES)" — nenhuma palavra do texto
+    // bate com "novas"/"cores", então as duas pontuavam igual na
+    // sobreposição bruta, e o desempate por ordem do catálogo escolhia
+    // sempre a errada (a primeira do array), sem avisar ninguém. O
+    // desempate por precisão resolve certo: "Calça Reta Stitched" tem
+    // menos palavras sobrando (nenhuma) que a versão "(NOVAS CORES)".
+    it("desempata pelo nome mais específico em vez de escolher a errada por ordem do catálogo", () => {
+      const result = findCatalogProductWithDetail("calça stitched normal", CATALOG_SNAPSHOT);
+      expect(result.ambiguous).toBe(false);
+      expect(result.product?.name).toBe("Calça Reta Stitched - MM Basic Drop");
+    });
+
+    it("fica ambíguo de verdade quando dois produtos empatam também na precisão", () => {
+      const tied: typeof CATALOG_SNAPSHOT[number] = {
+        id: "test-tied",
+        name: "Calça Reta Stitched - Outro Basic Drop",
+        type: "exclusivo",
+        category: "calca",
+        drop: { id: "test-tied", name: "Calça Reta Stitched - Outro Basic Drop", status: "ativo" },
+        active: true,
+        variants: [{ variantKey: "M", size: "M", color: null, estoqueReal: 0 }],
+      };
+      const result = findCatalogProductWithDetail("calça stitched normal", [...CATALOG_SNAPSHOT, tied]);
+      expect(result.product).toBeNull();
+      expect(result.ambiguous).toBe(true);
+    });
+
+    it("empate na sobreposição bruta não é ambiguidade quando um candidato é mais específico (sem palavras sobrando)", () => {
+      // "Camiseta Oversized Black/White" e "...Black/White Manga Longa" batem
+      // as mesmas 4 palavras — a sem "Manga Longa" sobrando ganha, não é
+      // ambíguo.
+      const result = findCatalogProductWithDetail("camiseta oversize black white", CATALOG_SNAPSHOT);
+      expect(result.ambiguous).toBe(false);
+      expect(result.product?.name).toBe("Camiseta Oversized Black/White - MM Basic Drop");
     });
   });
 

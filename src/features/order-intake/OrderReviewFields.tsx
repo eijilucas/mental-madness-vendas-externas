@@ -1,7 +1,7 @@
 import { ReviewField } from "./ReviewField";
 import { ProductQueryField } from "./ProductQueryField";
 import type { FieldStatus, OrderSource, ReviewForm, ReviewItem } from "./reviewTypes";
-import { colorsForSize, findCatalogProduct, matchCatalogItem } from "@/lib/catalog/matchProduct";
+import { colorsForSize, findCatalogProductWithDetail, matchCatalogItem } from "@/lib/catalog/matchProduct";
 import { onlyDigits } from "@/lib/parser/normalizers";
 import type { CatalogSnapshotProduct } from "@/lib/catalogSnapshot";
 
@@ -189,7 +189,7 @@ export function OrderReviewFields({ form, statuses, catalog, updateField }: Orde
           <div className="mb-4 flex flex-col gap-4">
             {form.items.map((item, index) => {
               const match = matchCatalogItem(item.productQuery, item.size, catalog ?? [], item.color);
-              const product = findCatalogProduct(item.productQuery, catalog ?? []);
+              const { product, ambiguous: ambiguousProduct } = findCatalogProductWithDetail(item.productQuery, catalog ?? []);
               const availableColors = product && item.size ? colorsForSize(product, item.size) : [];
               const needsColor = !match && availableColors.length > 1;
               return (
@@ -292,7 +292,9 @@ export function OrderReviewFields({ form, statuses, catalog, updateField }: Orde
                       ? `Casado com: ${match.product.name} (${match.variantKey})`
                       : needsColor
                         ? `Esse produto tem mais de uma cor no tamanho ${item.size} — escolha a cor acima pra fechar a correspondência.`
-                        : "Sem correspondência no catálogo ainda — o pedido será marcado como não criado se continuar assim."}
+                        : ambiguousProduct
+                          ? "Nome de produto ambíguo (bate igual com mais de um do catálogo) — use as sugestões do campo Produto pra escolher o certo."
+                          : "Sem correspondência no catálogo ainda — o pedido será marcado como não criado se continuar assim."}
                   </p>
                 </div>
               );

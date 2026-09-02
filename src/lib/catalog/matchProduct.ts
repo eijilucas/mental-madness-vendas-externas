@@ -183,17 +183,40 @@ export interface MatchResult {
  * parte pra UI conseguir mostrar as cores disponíveis de um produto mesmo
  * quando matchCatalogItem ainda não consegue fechar a variante exata.
  */
+export interface ProductMatchResult {
+  product: CatalogSnapshotProduct | null;
+  // true quando dois ou mais produtos empataram na pontuação — diferente
+  // de simplesmente não achar nada, vale a pena avisar o operador que dá
+  // pra resolver escolhendo pelas sugestões do campo Produto.
+  ambiguous: boolean;
+}
+
 export function findCatalogProduct(
   productQuery: string,
   products: CatalogSnapshotProduct[],
 ): CatalogSnapshotProduct | null {
+  return findCatalogProductWithDetail(productQuery, products).product;
+}
+
+export function findCatalogProductWithDetail(
+  productQuery: string,
+  products: CatalogSnapshotProduct[],
+): ProductMatchResult {
   const queryWordsList = significantWords(productQuery);
-  if (queryWordsList.length === 0) return null;
+  if (queryWordsList.length === 0) return { product: null, ambiguous: false };
   const queryWords = new Set(canonicalizeWords(queryWordsList));
 
   const queryType = garmentType(queryWordsList);
 
-  let best: { product: CatalogSnapshotProduct; score: number } | null = null;
+  // Guarda TODOS os candidatos empatados na maior pontuação, não só o
+  // primeiro — bug real encontrado em produção: "calça stitched normal"
+  // empata igual entre "Calça Reta Stitched" e "Calça Reta Stitched (NOVAS
+  // CORES)" (nenhuma palavra do texto bate com "novas"/"cores", então as
+  // duas pontuam igual), e o desempate por ordem do catálogo escolhia a
+  // errada silenciosamente — sem nenhum aviso de ambiguidade, diferente do
+  // que já acontecia pra cor.
+  let bestScore = -1;
+  let bestCandidates: { product: CatalogSnapshotProduct; nameWordsSize: number }[] = [];
 
   for (const product of products) {
     if (!product.active) continue;
@@ -216,12 +239,34 @@ export function findCatalogProduct(
       .length;
     const required = Math.min(2, nameWords.size);
     if (overlap < required) continue;
-    if (!best || overlap > best.score) {
-      best = { product, score: overlap };
+
+    if (overlap > bestScore) {
+      bestScore = overlap;
+      bestCandidates = [{ product, nameWordsSize: nameWords.size }];
+    } else if (overlap === bestScore) {
+      bestCandidates.push({ product, nameWordsSize: nameWords.size });
     }
   }
 
-  return best?.product ?? null;
+  // Empate na sobreposição bruta: prefere o nome mais "enxuto" (maior
+  // proporção de palavras do nome batendo no texto do cliente) — ex.:
+  // "Camiseta Oversized Black/White" vs "...Black/White Manga Longa" pro
+  // mesmo texto "camiseta oversize black white" batem as mesmas 4
+  // palavras, mas a primeira não tem NENHUMA palavra sobrando, a segunda
+  // tem duas ("manga", "longa") que o cliente não disse — não é ambiguidade
+  // de verdade, é o candidato mais específico ganhando. Só declara
+  // ambíguo quando dois produtos DIFERENTES empatam também nessa proporção
+  // (caso real: "calça stitched normal" — nem "novas"/"cores" nem nada do
+  // nome extra bate, então as duas variantes do produto empatam de verdade).
+  if (bestCandidates.length > 1) {
+    const bestPrecision = Math.min(...bestCandidates.map((c) => c.nameWordsSize));
+    bestCandidates = bestCandidates.filter((c) => c.nameWordsSize === bestPrecision);
+  }
+
+  return {
+    product: bestCandidates.length === 1 ? bestCandidates[0].product : null,
+    ambiguous: bestCandidates.length > 1,
+  };
 }
 
 export function matchCatalogItem(

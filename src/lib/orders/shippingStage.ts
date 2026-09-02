@@ -40,3 +40,24 @@ export function shippingStageLabel(order: Order): string | null {
   if (order.shipping_stage === null) return "Fila de aprovação";
   return SHIPPING_STAGE_LABELS[order.shipping_stage];
 }
+
+export type OrderBadgeTone = "success" | "danger" | "warning" | "info" | "neutral";
+
+/** Badge principal da situação do pedido (tabela/card de Pedidos). Antes
+ * disso mostrava sempre "Pedido criado", que fica sem sentido numa tela
+ * que já filtra só pedidos criados/enviados — agora reflete de verdade em
+ * que ponto da jornada de envio o pedido está, incluindo o cenário de
+ * "rastreio já emitido, mas o produto ainda não foi postado" (que antes
+ * ficava escondido dentro de "Liberados", indistinguível de um pedido que
+ * ainda nem tem etiqueta). */
+export function orderStatusBadge(order: Order): { label: string; tone: OrderBadgeTone } {
+  if (order.status !== "created") return { label: "Não criado", tone: "danger" };
+  if (order.shipping_status !== "sent") return { label: "Pedido criado", tone: "success" };
+  if (order.tracking_notified_at) return { label: "Cliente avisado", tone: "success" };
+  if (order.shipping_posted_at) return { label: "Postado", tone: "success" };
+  if (order.shipping_stage === "tracking_ready" || order.shipping_stage === "tracking_synced") {
+    return { label: "Rastreio emitido", tone: "info" };
+  }
+  if (order.shipping_stage === null) return { label: "Fila de aprovação", tone: "warning" };
+  return { label: "Pedido enviado", tone: "info" };
+}
