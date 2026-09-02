@@ -53,6 +53,11 @@ export interface Order {
     | null;
   shipping_posted_at: string | null;
   tracking_code: string | null;
+  // Quando o e-mail de rastreio foi mandado pro cliente (Resend, ver
+  // integration-callback) — não confundir com shipping_stage
+  // "tracking_synced" (o mm-etiquetas liberou o código; o e-mail pode
+  // ainda não ter sido enviado/ter falhado).
+  tracking_notified_at: string | null;
   group_id: string | null;
   created_by: string;
   created_at: string;

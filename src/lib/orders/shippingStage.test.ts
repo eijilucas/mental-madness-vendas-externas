@@ -26,6 +26,7 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
     shipping_stage: null,
     shipping_posted_at: null,
     tracking_code: null,
+    tracking_notified_at: null,
     group_id: null,
     created_by: "user-1",
     created_at: "2026-09-01T00:00:00Z",
@@ -50,31 +51,33 @@ describe("shippingTabs", () => {
     expect(shippingTabs(order)).toEqual(new Set(["fila_aprovacao"]));
   });
 
-  it("approved/cart_created/purchased/label_generated sem posted_at caem em Liberados só", () => {
-    for (const stage of ["approved", "cart_created", "purchased", "label_generated"] as const) {
+  it("qualquer estágio de processamento sem posted_at cai em Liberados", () => {
+    for (const stage of ["approved", "cart_created", "purchased", "label_generated", "tracking_ready", "failed"] as const) {
       const order = makeOrder({ shipping_stage: stage });
       expect(shippingTabs(order)).toEqual(new Set(["liberados"]));
     }
   });
 
-  it("tracking_ready sem posted_at cai em Liberados E Rastreio ao mesmo tempo", () => {
-    const order = makeOrder({ shipping_stage: "tracking_ready" });
-    expect(shippingTabs(order)).toEqual(new Set(["liberados", "rastreio"]));
-  });
-
-  it("failed sem posted_at cai em Liberados E Rastreio (precisa reprocessar/reenviar)", () => {
-    const order = makeOrder({ shipping_stage: "failed" });
-    expect(shippingTabs(order)).toEqual(new Set(["liberados", "rastreio"]));
-  });
-
-  it("com posted_at preenchido, sai de Liberados e vai pra Postados (mesmo em tracking_ready)", () => {
+  it("com posted_at preenchido, sai de Liberados e vai pra Postados", () => {
     const order = makeOrder({ shipping_stage: "tracking_ready", shipping_posted_at: "2026-09-01T10:00:00Z" });
-    expect(shippingTabs(order)).toEqual(new Set(["postados", "rastreio"]));
+    expect(shippingTabs(order)).toEqual(new Set(["postados"]));
   });
 
-  it("held/archived não caem em nenhuma das 4 abas (não há aba própria pra eles ainda)", () => {
-    expect(shippingTabs(makeOrder({ shipping_stage: "held" }))).toEqual(new Set());
-    expect(shippingTabs(makeOrder({ shipping_stage: "archived" }))).toEqual(new Set());
+  it("assim que o e-mail de rastreio é enviado, para em Rastreio — independente de posted_at/estágio", () => {
+    const semPostar = makeOrder({ shipping_stage: "tracking_synced", tracking_notified_at: "2026-09-01T11:00:00Z" });
+    expect(shippingTabs(semPostar)).toEqual(new Set(["rastreio"]));
+
+    const jaPostado = makeOrder({
+      shipping_stage: "tracking_synced",
+      shipping_posted_at: "2026-09-01T10:00:00Z",
+      tracking_notified_at: "2026-09-01T11:00:00Z",
+    });
+    expect(shippingTabs(jaPostado)).toEqual(new Set(["rastreio"]));
+  });
+
+  it("held/archived caem em Liberados também (não têm aba própria — tratados como 'ainda em processamento')", () => {
+    expect(shippingTabs(makeOrder({ shipping_stage: "held" }))).toEqual(new Set(["liberados"]));
+    expect(shippingTabs(makeOrder({ shipping_stage: "archived" }))).toEqual(new Set(["liberados"]));
   });
 });
 
@@ -87,13 +90,25 @@ describe("shippingStageLabel", () => {
     expect(shippingStageLabel(makeOrder({ shipping_stage: null }))).toBe("Fila de aprovação");
   });
 
-  it("Postado tem prioridade sobre o estágio quando posted_at está preenchido", () => {
+  it("Postado quando posted_at está preenchido e ainda não avisou o cliente", () => {
     expect(
       shippingStageLabel(makeOrder({ shipping_stage: "label_generated", shipping_posted_at: "2026-09-01T10:00:00Z" })),
     ).toBe("Postado");
   });
 
-  it("rótulo do estágio quando não postado ainda", () => {
+  it("rótulo do estágio quando não postado nem avisado ainda", () => {
     expect(shippingStageLabel(makeOrder({ shipping_stage: "tracking_ready" }))).toBe("Rastreio pronto");
+  });
+
+  it("cliente avisado tem prioridade sobre qualquer outro estágio", () => {
+    expect(
+      shippingStageLabel(
+        makeOrder({
+          shipping_stage: "tracking_synced",
+          shipping_posted_at: "2026-09-01T10:00:00Z",
+          tracking_notified_at: "2026-09-01T11:00:00Z",
+        }),
+      ),
+    ).toBe("Cliente avisado por e-mail");
   });
 });

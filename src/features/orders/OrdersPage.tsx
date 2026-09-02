@@ -10,7 +10,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { useOrders } from "@/lib/supabase/queries";
 import { shippingTabs } from "@/lib/orders/shippingStage";
 
-type StatusFilter = "fila_aprovacao" | "liberados" | "postados";
+type StatusFilter = "fila_aprovacao" | "liberados" | "postados" | "rastreio";
 
 export function OrdersPage() {
   const [search, setSearch] = useState("");
@@ -60,6 +60,7 @@ export function OrdersPage() {
             { value: "fila_aprovacao", label: "Fila de aprovação" },
             { value: "liberados", label: "Liberados" },
             { value: "postados", label: "Postados" },
+            { value: "rastreio", label: "Rastreio" },
           ]}
         />
       </div>
