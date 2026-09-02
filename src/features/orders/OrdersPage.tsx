@@ -10,17 +10,16 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { useOrders } from "@/lib/supabase/queries";
 import { shippingTabs } from "@/lib/orders/shippingStage";
 
-type StatusFilter = "all" | "fila_aprovacao" | "liberados" | "rastreio" | "postados" | "not_created";
+type StatusFilter = "fila_aprovacao" | "liberados" | "rastreio" | "postados";
 
 export function OrdersPage() {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("fila_aprovacao");
   const { data: orders, isLoading, isError, refetch } = useOrders();
 
   const filtered = useMemo(() => {
     return (orders ?? []).filter(({ order }) => {
-      if (status === "not_created" && order.status !== "not_created") return false;
-      if (status !== "all" && status !== "not_created" && !shippingTabs(order).has(status)) return false;
+      if (!shippingTabs(order).has(status)) return false;
       if (!search.trim()) return true;
       const term = search.trim().toLowerCase();
       return (
@@ -58,12 +57,10 @@ export function OrdersPage() {
           value={status}
           onChange={setStatus}
           options={[
-            { value: "all", label: "Todos" },
             { value: "fila_aprovacao", label: "Fila de aprovação" },
             { value: "liberados", label: "Liberados" },
             { value: "rastreio", label: "Rastreio" },
             { value: "postados", label: "Postados" },
-            { value: "not_created", label: "Não criados" },
           ]}
         />
       </div>
