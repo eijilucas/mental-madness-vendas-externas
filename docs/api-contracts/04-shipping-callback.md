@@ -25,26 +25,29 @@ Secret: `INTEGRATION_CALLBACK_SECRET`, compartilhado entre os dois sistemas, com
 {
   "eventId": "evt_9f2a...",
   "sourceOrderId": "b3b8c1e2-...",
-  "event": "shipping.label_generated",
-  "status": "label_generated",
+  "event": "shipping.tracking_synced",
+  "status": "tracking_synced",
   "occurredAt": "2026-08-22T19:40:00Z",
   "metadata": {
-    "trackingCode": null,
-    "labelUrl": "https://..."
+    "trackingCode": "BR123456789"
   }
 }
 ```
 
 ### Eventos possíveis (`event`)
 
-`shipping.pending_approval`, `shipping.approved`, `shipping.label_generated`, `shipping.tracking_available`, `shipping.held`, `shipping.failed`, `shipping.cancelled` — mesma lista do briefing §14.3.
+Dois eventos, na prática mais simples que a lista original prevista (`shipping.pending_approval`/`approved`/`label_generated`/... por transição): descobrimos, ao implementar, que o Vendas Externas só precisa saber em qual das 4 abas (Fila de aprovação / Liberados / Rastreio / Postados) cada pedido está — não precisa do detalhe fino de cada sub-etapa do `mm-etiquetas` (`approved` → `cart_created` → `purchased` → `label_generated`).
+
+- **`shipping.status_changed`** — disparado sempre que `orders_shipping.status` de um pedido `store_key = "external"` muda (fim de `runShippingPipeline`, `/hold`, `/revert`). `status` carrega o valor bruto do enum `shipping_status` do `mm-etiquetas` (`pending_approval`, `approved`, `cart_created`, `purchased`, `label_generated`, `tracking_ready`, `tracking_synced`, `held`, `failed`, `archived`). `metadata.postedAt` carrega o `posted_at` atual (pode já vir preenchido se o pedido tiver sido postado antes da última mudança de status).
+- **`shipping.posted`** — disparado pela rota `/post` (marca `posted_at`), sem mudar `status`. `metadata.postedAt` sempre presente.
+- **`shipping.tracking_synced`** — já existente (rastreio liberado pro cliente, dispara o e-mail). Continua igual.
 
 ## Semântica no receptor
 
 1. Verifica assinatura; assinatura inválida → 401, sem processar.
-2. `eventId` é chave de idempotência — se já visto (tabela `integration_attempts`), responde 200 sem reprocessar.
-3. Atualiza o metadado de fulfillment do pedido (não o status de negócio simplificado exposto ao operador) e grava em `audit_events`.
-4. Nunca expõe esse payload bruto na UI do operador — só no detalhe técnico acessível a admin, mascarando CPF/telefone se presentes em metadata.
+2. `eventId` é chave de idempotência — se já visto (tabela `integration_callback_events`), responde 200 sem reprocessar.
+3. `shipping.status_changed`/`shipping.posted` gravam `orders.shipping_stage` (o `status` bruto do `mm-etiquetas`) e `orders.shipping_posted_at` — usados só para montar as abas da tela de Pedidos; nunca expostos como "status do pedido" pro cliente.
+4. `shipping.tracking_synced` mantém o comportamento já implementado (grava `tracking_code`, dispara e-mail via Resend).
 
 ## Resposta 200
 

@@ -28,6 +28,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { verifyHmacHex } from "../_shared/hmac.ts";
+import { buildTrackingEmailHtml } from "../_shared/emailTemplates.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -69,21 +70,7 @@ async function sendTrackingEmail(to: string, customerName: string, publicNumber:
         from: `Mental Madness <${RESEND_FROM_EMAIL}>`,
         to: [to],
         subject: `Seu pedido #${publicNumber} já está a caminho`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-            <h2 style="color: #111;">Seu pedido saiu para entrega 🖤</h2>
-            <p>Oi, ${customerName}! Seu pedido <strong>#${publicNumber}</strong> já foi postado.</p>
-            <p style="font-size: 18px; margin: 24px 0;">
-              Código de rastreio: <strong>${trackingCode}</strong>
-            </p>
-            <p>
-              Acompanhe em
-              <a href="https://melhorrastreio.com.br" target="_blank">melhorrastreio.com.br</a>
-              usando esse código.
-            </p>
-            <p style="color: #888; font-size: 13px; margin-top: 32px;">Mental Madness</p>
-          </div>
-        `,
+        html: buildTrackingEmailHtml({ customerName, publicNumber, trackingCode }),
       }),
     });
     if (!res.ok) {
