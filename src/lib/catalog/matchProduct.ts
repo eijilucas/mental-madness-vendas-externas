@@ -178,11 +178,15 @@ export interface MatchResult {
  * candidato PRECISA ser do mesmo tipo — nunca casa peça diferente só
  * porque o nome do drop bate.
  */
-export function matchCatalogItem(
+/**
+ * Só a etapa de achar o PRODUTO (sem resolver tamanho/cor) — exportada à
+ * parte pra UI conseguir mostrar as cores disponíveis de um produto mesmo
+ * quando matchCatalogItem ainda não consegue fechar a variante exata.
+ */
+export function findCatalogProduct(
   productQuery: string,
-  size: string,
   products: CatalogSnapshotProduct[],
-): MatchResult | null {
+): CatalogSnapshotProduct | null {
   const queryWordsList = significantWords(productQuery);
   if (queryWordsList.length === 0) return null;
   const queryWords = new Set(canonicalizeWords(queryWordsList));
@@ -217,18 +221,46 @@ export function matchCatalogItem(
     }
   }
 
-  if (!best) return null;
+  return best?.product ?? null;
+}
+
+export function matchCatalogItem(
+  productQuery: string,
+  size: string,
+  products: CatalogSnapshotProduct[],
+  color = "",
+): MatchResult | null {
+  const queryWordsList = significantWords(productQuery);
+  if (queryWordsList.length === 0) return null;
+
+  const product = findCatalogProduct(productQuery, products);
+  if (!product) return null;
 
   const normalizedSize = size.trim().toUpperCase();
-  const sizeMatches = best.product.variants.filter((v) => v.size === normalizedSize);
+  const sizeMatches = product.variants.filter((v) => v.size === normalizedSize);
   if (sizeMatches.length === 0) return null;
-  if (sizeMatches.length === 1) return { product: best.product, variantKey: sizeMatches[0].variantKey };
+  if (sizeMatches.length === 1) return { product, variantKey: sizeMatches[0].variantKey };
 
   // Mesmo tamanho existe em mais de uma cor (ex.: "Moletom Zip Up Com
-  // Touca" tem Cinza Claro e Preto) — escolher a primeira da lista sem
-  // olhar a cor pedida seria um erro silencioso. Só aceita quando dá pra
-  // identificar SEM ambiguidade qual cor o cliente quis: exatamente uma
-  // variante cuja cor tem palavra em comum com o texto do cliente.
+  // Touca" tem Cinza Claro e Preto, ou "Calça Reta Stitched (NOVAS CORES)"
+  // com duas cores em toda variante) — escolher a primeira da lista sem
+  // olhar a cor pedida seria um erro silencioso.
+
+  // Campo Cor explícito (preenchido pelo operador): casamento exato,
+  // ignorando acento/maiúscula. Prioridade sobre o texto livre — depois que
+  // o operador escolhe o produto pelo autocomplete, productQuery vira só o
+  // nome canônico do produto e nunca mais carrega a cor pedida pelo
+  // cliente, então o heurístico abaixo sempre falharia sozinho.
+  const normalizedColor = stripAccents(color.trim());
+  if (normalizedColor) {
+    const exact = sizeMatches.find((v) => v.color && stripAccents(v.color) === normalizedColor);
+    if (exact) return { product, variantKey: exact.variantKey };
+    return null;
+  }
+
+  // Sem campo Cor preenchido: só aceita quando dá pra identificar SEM
+  // ambiguidade qual cor o cliente quis a partir do texto livre —
+  // exatamente uma variante cuja cor tem palavra em comum com o texto.
   const colorCandidates = sizeMatches.filter((v) => {
     if (!v.color) return false;
     const colorWords = new Set(significantWords(v.color).map((w) => COLOR_ALIASES[w] ?? w));
@@ -236,5 +268,15 @@ export function matchCatalogItem(
   });
   if (colorCandidates.length !== 1) return null;
 
-  return { product: best.product, variantKey: colorCandidates[0].variantKey };
+  return { product, variantKey: colorCandidates[0].variantKey };
+}
+
+/** Cores disponíveis pra um produto+tamanho — usado pra guiar o operador
+ * quando o mesmo tamanho existe em mais de uma cor. */
+export function colorsForSize(product: CatalogSnapshotProduct, size: string): string[] {
+  const normalizedSize = size.trim().toUpperCase();
+  const colors = product.variants
+    .filter((v) => v.size === normalizedSize && v.color)
+    .map((v) => v.color as string);
+  return [...new Set(colors)];
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchCatalogItem } from "./matchProduct";
+import { colorsForSize, findCatalogProduct, matchCatalogItem } from "./matchProduct";
 import { CATALOG_SNAPSHOT } from "@/lib/catalogSnapshot";
 
 describe("matchCatalogItem", () => {
@@ -145,5 +145,80 @@ describe("matchCatalogItem", () => {
     );
     const result = matchCatalogItem("Calça Hell Hounds", "M", inactiveCatalog);
     expect(result).toBeNull();
+  });
+
+  describe("campo Cor explícito (regressão do bug real: NOVAS CORES sem variação visível)", () => {
+    // Bug real: depois que o operador escolhe "Calça Reta Stitched (NOVAS
+    // CORES) - MM Basic Drop" pelo autocomplete, productQuery vira só o
+    // nome do produto — nenhuma palavra de cor sobra pro heurístico de
+    // texto livre, então o casamento sempre falhava (voltava null) e a
+    // tela nunca mostrava nenhuma cor pro operador escolher.
+    it("com o produto já escolhido pelo autocomplete (sem cor no texto), falha sem o campo Cor", () => {
+      const semCor = matchCatalogItem("Calça Reta Stitched (NOVAS CORES) - MM Basic Drop", "P", CATALOG_SNAPSHOT);
+      expect(semCor).toBeNull();
+    });
+
+    it("casa a variante certa quando o campo Cor é preenchido explicitamente", () => {
+      const result = matchCatalogItem(
+        "Calça Reta Stitched (NOVAS CORES) - MM Basic Drop",
+        "P",
+        CATALOG_SNAPSHOT,
+        "Cinza Escura Com Logo Preta",
+      );
+      expect(result?.variantKey).toBe("P::Cinza Escura Com Logo Preta");
+    });
+
+    it("ignora acento/maiúscula no campo Cor", () => {
+      const result = matchCatalogItem(
+        "Calça Reta Stitched (NOVAS CORES) - MM Basic Drop",
+        "P",
+        CATALOG_SNAPSHOT,
+        "cinza escura com logo preta",
+      );
+      expect(result?.variantKey).toBe("P::Cinza Escura Com Logo Preta");
+    });
+
+    it("cor que não existe nesse tamanho/produto não casa nada (não cai pro heurístico de texto livre)", () => {
+      const result = matchCatalogItem(
+        "Calça Reta Stitched (NOVAS CORES) - MM Basic Drop",
+        "P",
+        CATALOG_SNAPSHOT,
+        "Roxo",
+      );
+      expect(result).toBeNull();
+    });
+
+    it("campo Cor tem prioridade sobre o texto livre quando os dois estão presentes", () => {
+      const result = matchCatalogItem(
+        "moletom touca preto", // texto livre sugeriria Preto
+        "M",
+        CATALOG_SNAPSHOT,
+        "Cinza Claro", // campo Cor explícito vence
+      );
+      expect(result?.variantKey).toBe("M::Cinza Claro");
+    });
+  });
+
+  describe("findCatalogProduct", () => {
+    it("acha o produto sem precisar resolver tamanho/cor", () => {
+      const product = findCatalogProduct("Calça Reta Stitched (NOVAS CORES) - MM Basic Drop", CATALOG_SNAPSHOT);
+      expect(product?.name).toBe("Calça Reta Stitched (NOVAS CORES) - MM Basic Drop");
+    });
+
+    it("retorna null quando nada bate", () => {
+      expect(findCatalogProduct("Produto que não existe de jeito nenhum", CATALOG_SNAPSHOT)).toBeNull();
+    });
+  });
+
+  describe("colorsForSize", () => {
+    it("lista as cores disponíveis pro tamanho pedido", () => {
+      const product = findCatalogProduct("Calça Reta Stitched (NOVAS CORES) - MM Basic Drop", CATALOG_SNAPSHOT)!;
+      expect(colorsForSize(product, "P")).toEqual(["Preto Com Logo Cinza Escura", "Cinza Escura Com Logo Preta"]);
+    });
+
+    it("lista vazia quando o tamanho não existe nesse produto", () => {
+      const product = findCatalogProduct("Calça Reta Stitched (NOVAS CORES) - MM Basic Drop", CATALOG_SNAPSHOT)!;
+      expect(colorsForSize(product, "GG")).toEqual([]);
+    });
   });
 });

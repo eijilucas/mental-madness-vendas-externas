@@ -64,7 +64,7 @@ export function NewOrderPage() {
     let changed = false;
     const items = form.items.map((item) => {
       if (item.unitPrice > 0) return item;
-      const match = matchCatalogItem(item.productQuery, item.size, catalog);
+      const match = matchCatalogItem(item.productQuery, item.size, catalog, item.color);
       const price = match?.product.variants.find((v) => v.variantKey === match.variantKey)?.price;
       if (!price) return item;
       changed = true;
@@ -95,6 +95,9 @@ export function NewOrderPage() {
           rawText: item.rawText,
           productQuery: item.productQuery,
           size: item.size ?? "",
+          // Parser não extrai cor do texto livre — o operador preenche na
+          // revisão quando o produto tem mais de uma cor por tamanho.
+          color: "",
           quantity: item.quantity,
           unitPrice: 0,
           variantMatched: false,
@@ -142,12 +145,12 @@ export function NewOrderPage() {
 
     const catalogProducts = catalog ?? [];
     const items = form.items.map((item) => {
-      const match = matchCatalogItem(item.productQuery, item.size, catalogProducts);
+      const match = matchCatalogItem(item.productQuery, item.size, catalogProducts, item.color);
       return {
         catalog_product_id: match?.product.id ?? null,
         variant_key: match?.variantKey ?? null,
         product_name: match?.product.name ?? item.productQuery,
-        color: null,
+        color: item.color || null,
         size: item.size,
         quantity: item.quantity,
         unit_price: item.unitPrice,

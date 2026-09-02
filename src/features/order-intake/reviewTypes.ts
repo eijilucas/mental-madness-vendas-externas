@@ -3,6 +3,11 @@ export interface ReviewItem {
   rawText: string;
   productQuery: string;
   size: string;
+  // Vazio até o operador preencher — o parser não tenta extrair cor do
+  // texto livre (ver matchCatalogItem), só o tamanho. Produtos com mais de
+  // uma cor por tamanho (ex.: "Calça Reta Stitched (NOVAS CORES)") ficam
+  // sem correspondência no catálogo até esse campo ser preenchido.
+  color: string;
   quantity: number;
   unitPrice: number;
   variantMatched: boolean;

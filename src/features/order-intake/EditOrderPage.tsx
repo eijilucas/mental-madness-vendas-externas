@@ -60,6 +60,7 @@ export function EditOrderPage() {
           rawText: item.product_name,
           productQuery: item.product_name,
           size: item.size ?? "",
+          color: item.color ?? "",
           quantity: item.quantity,
           unitPrice: item.unit_price,
           variantMatched: !!item.catalog_product_id,
@@ -89,12 +90,12 @@ export function EditOrderPage() {
 
     const catalogProducts = catalog ?? [];
     const items = form.items.map((item) => {
-      const match = matchCatalogItem(item.productQuery, item.size, catalogProducts);
+      const match = matchCatalogItem(item.productQuery, item.size, catalogProducts, item.color);
       return {
         catalog_product_id: match?.product.id ?? null,
         variant_key: match?.variantKey ?? null,
         product_name: match?.product.name ?? item.productQuery,
-        color: null,
+        color: item.color || null,
         size: item.size,
         quantity: item.quantity,
         unit_price: item.unitPrice,
