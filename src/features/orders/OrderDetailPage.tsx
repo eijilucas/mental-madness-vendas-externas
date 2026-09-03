@@ -139,7 +139,7 @@ export function OrderDetailPage() {
             Motivo: {order.failure_reason}
           </p>
           <Link
-            to="/novo-pedido"
+            to={`/pedidos/${order.public_number}/editar`}
             className="mt-3 inline-block rounded-md border border-border px-4 py-2 text-sm text-text hover:border-text"
           >
             Corrigir e tentar novamente
