@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: order, error: orderError } = await adminClient
     .from("orders")
-    .select("id, public_number, status, customer_name, email, phone, cpf, total_amount")
+    .select("id, public_number, status, customer_name, email, phone, cpf, total_amount, group_id, order_groups(name)")
     .eq("id", order_id)
     .maybeSingle();
 
@@ -113,6 +113,8 @@ Deno.serve(async (req: Request) => {
       quantity: item.quantity,
       unitPrice: String(item.unit_price),
     })),
+    dropId: order.group_id,
+    dropName: order.order_groups?.[0]?.name ?? null,
   };
 
   try {
