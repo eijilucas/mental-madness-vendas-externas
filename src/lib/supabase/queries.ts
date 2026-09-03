@@ -275,6 +275,15 @@ export function useSetOrderGroup() {
         p_group_id: groupId,
       });
       if (error) throw error;
+
+      // Pedido pode já ter sido mandado pro mm-etiquetas antes de entrar
+      // (ou sair) desse drop — send-to-shipping só roda uma vez na criação,
+      // então sem isso o agrupamento no painel de fila de aprovação nunca
+      // se atualizaria. Best-effort de propósito, igual o NewOrderPage: o
+      // pedido já foi agrupado/desagrupado com sucesso aqui, isso é só uma
+      // tentativa de manter o mm-etiquetas em dia — se falhar, o pedido
+      // fica temporariamente sem refletir o drop lá, mas nada se perde.
+      await supabase.functions.invoke("send-to-shipping", { body: { order_id: orderId } }).catch(() => {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
