@@ -10,7 +10,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { useOrders } from "@/lib/supabase/queries";
 import { shippingTabs } from "@/lib/orders/shippingStage";
 
-type StatusFilter = "fila_aprovacao" | "liberados" | "postados" | "rastreio";
+type StatusFilter = "fila_aprovacao" | "liberados" | "postados" | "rastreio" | "not_created";
 
 export function OrdersPage() {
   const [search, setSearch] = useState("");
@@ -19,7 +19,11 @@ export function OrdersPage() {
 
   const filtered = useMemo(() => {
     return (orders ?? []).filter(({ order }) => {
-      if (!shippingTabs(order).has(status)) return false;
+      if (status === "not_created") {
+        if (order.status !== "not_created") return false;
+      } else if (!shippingTabs(order).has(status)) {
+        return false;
+      }
       if (!search.trim()) return true;
       const term = search.trim().toLowerCase();
       return (
@@ -61,6 +65,7 @@ export function OrdersPage() {
             { value: "liberados", label: "Liberados" },
             { value: "postados", label: "Postados" },
             { value: "rastreio", label: "Rastreio" },
+            { value: "not_created", label: "Não criados" },
           ]}
         />
       </div>
