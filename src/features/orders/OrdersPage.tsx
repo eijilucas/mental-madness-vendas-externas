@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchField } from "@/components/ui/SearchField";
 import { FilterTabs } from "@/components/ui/FilterTabs";
@@ -12,9 +12,20 @@ import { shippingTabs } from "@/lib/orders/shippingStage";
 
 type StatusFilter = "fila_aprovacao" | "liberados" | "postados" | "rastreio" | "not_created";
 
+const VALID_TABS: StatusFilter[] = ["fila_aprovacao", "liberados", "postados", "rastreio", "not_created"];
+
 export function OrdersPage() {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("fila_aprovacao");
+  // Aba fica na URL (?tab=...), não só em estado local — senão excluir um
+  // pedido (que navega de volta pra /pedidos) ou dar F5 sempre jogava de
+  // volta pra Fila de aprovação, mesmo que o operador estivesse em Não
+  // criados/Postados/etc.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const status: StatusFilter = VALID_TABS.includes(tabParam as StatusFilter) ? (tabParam as StatusFilter) : "fila_aprovacao";
+  function setStatus(next: StatusFilter) {
+    setSearchParams(next === "fila_aprovacao" ? {} : { tab: next });
+  }
   const { data: orders, isLoading, isError, refetch } = useOrders();
 
   const filtered = useMemo(() => {

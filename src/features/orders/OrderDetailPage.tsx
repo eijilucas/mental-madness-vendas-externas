@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -27,6 +27,7 @@ const SOURCE_LABELS: Record<string, string> = {
 export function OrderDetailPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showOriginal, setShowOriginal] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { data, isLoading, isError, refetch } = useOrder(orderNumber);
@@ -38,10 +39,20 @@ export function OrderDetailPage() {
   // Editar/excluir também ficam restritos a admin/operator, mesma trava.
   const canManage = canSeeFullPii;
 
+  // Volta pra tela de Pedidos preservando a aba (?tab=...) de onde o
+  // operador veio, em vez de sempre cair em Fila de aprovação — location.key
+  // "default" quer dizer que essa página foi aberta direto (link externo,
+  // F5), sem histórico de SPA pra voltar; nesse caso "/pedidos" puro é o
+  // único destino que faz sentido.
+  function backToOrders() {
+    if (location.key !== "default") navigate(-1);
+    else navigate("/pedidos");
+  }
+
   async function handleDelete() {
     if (!data) return;
     await deleteOrder.mutateAsync(data.order.id);
-    navigate("/pedidos");
+    backToOrders();
   }
 
   if (isLoading) {
@@ -114,9 +125,13 @@ export function OrderDetailPage() {
         }
       />
 
-      <Link to="/pedidos" className="text-sm text-text-muted hover:text-text">
+      <button
+        type="button"
+        onClick={backToOrders}
+        className="text-left text-sm text-text-muted hover:text-text"
+      >
         ← Voltar aos pedidos
-      </Link>
+      </button>
 
       {!isCreated && order.failure_reason && (
         <div className="rounded-md border border-danger/40 bg-surface p-5">
