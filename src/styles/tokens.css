@@ -39,24 +39,19 @@
 }
 
 /*
-  Horst Blackletter não foi obtido: a fonte não está disponível como arquivo
-  para download a partir do protótipo Framer público (não é carregada como
-  web font ali). Até que o .woff2 real seja enviado, o wordmark usa a
-  variável --font-wordmark com fallback serifado — ver docs/decisions.
-  NÃO declarar @font-face apontando para public/fonts/Horst-Blackletter.woff2
-  enquanto o arquivo não existir: um 404 nessa rota faz o navegador tentar
-  reinterpretar o HTML de erro como fonte a cada uso, gerando ruído no console.
-  Quando o arquivo real for adicionado, reative o bloco abaixo.
+  Arquivo real enviado pelo usuário (2026-09-02) — mesma fonte usada no
+  site oficial. woff2 primeiro (menor, suportado por todo navegador atual),
+  woff como fallback pros poucos que não pegam woff2.
 */
-/*
 @font-face {
   font-family: "Horst Blackletter";
-  src: url("/fonts/Horst-Blackletter.woff2") format("woff2");
-  font-weight: 400;
+  src:
+    url("/fonts/Horst-Blackletter.woff2") format("woff2"),
+    url("/fonts/Horst-Blackletter.woff") format("woff");
+  font-weight: 400 900;
   font-style: normal;
   font-display: swap;
 }
-*/
 
 body {
   background-color: var(--color-bg);

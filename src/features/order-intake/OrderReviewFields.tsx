@@ -60,10 +60,10 @@ export function OrderReviewFields({ form, statuses, catalog, updateField }: Orde
           {form.source === "whatsapp" ? (
             <div>
               <label className="mb-1.5 block text-sm text-text-muted">
-                Últimos 4 dígitos do telefone
+                Últimos 4 dígitos do telefone (preenchido automático)
               </label>
-              <div className="w-full rounded-md border border-border bg-bg px-4 py-3 text-sm text-text-muted">
-                {onlyDigits(form.phone).slice(-4) || "— preencha o telefone —"}
+              <div className="w-full rounded-md border border-dashed border-border bg-bg px-4 py-3 text-sm text-text-muted">
+                {onlyDigits(form.phone).slice(-4) || "Preencha o telefone na seção Contato, abaixo"}
               </div>
             </div>
           ) : (
