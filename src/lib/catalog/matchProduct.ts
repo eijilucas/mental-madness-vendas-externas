@@ -325,3 +325,21 @@ export function colorsForSize(product: CatalogSnapshotProduct, size: string): st
     .map((v) => v.color as string);
   return [...new Set(colors)];
 }
+
+const SIZE_ORDER = ["PP", "P", "M", "G", "GG", "XG", "XGG", "ÚNICO"];
+
+/** Tamanhos que esse produto realmente tem (ex.: só "ÚNICO", ou PP..GG) —
+ * bug real em produção: operador digitou "G" pra um produto que só existe
+ * em ÚNICO (regata sem grade de tamanho) e ficou sem nenhum feedback até
+ * o pedido inteiro falhar como "Produto não encontrado no catálogo". */
+export function sizesForProduct(product: CatalogSnapshotProduct): string[] {
+  const sizes = product.variants.filter((v) => v.size).map((v) => v.size as string);
+  return [...new Set(sizes)].sort((a, b) => {
+    const ia = SIZE_ORDER.indexOf(a);
+    const ib = SIZE_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}

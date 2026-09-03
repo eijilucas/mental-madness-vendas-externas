@@ -1,7 +1,7 @@
 import { ReviewField } from "./ReviewField";
 import { ProductQueryField } from "./ProductQueryField";
 import type { FieldStatus, OrderSource, ReviewForm, ReviewItem } from "./reviewTypes";
-import { colorsForSize, findCatalogProductWithDetail, matchCatalogItem } from "@/lib/catalog/matchProduct";
+import { colorsForSize, findCatalogProductWithDetail, matchCatalogItem, sizesForProduct } from "@/lib/catalog/matchProduct";
 import { onlyDigits } from "@/lib/parser/normalizers";
 import type { CatalogSnapshotProduct } from "@/lib/catalogSnapshot";
 
@@ -190,6 +190,7 @@ export function OrderReviewFields({ form, statuses, catalog, updateField }: Orde
             {form.items.map((item, index) => {
               const match = matchCatalogItem(item.productQuery, item.size, catalog ?? [], item.color);
               const { product, ambiguous: ambiguousProduct } = findCatalogProductWithDetail(item.productQuery, catalog ?? []);
+              const availableSizes = product ? sizesForProduct(product) : [];
               const availableColors = product && item.size ? colorsForSize(product, item.size) : [];
               const needsColor = !match && availableColors.length > 1;
               return (
@@ -217,16 +218,55 @@ export function OrderReviewFields({ form, statuses, catalog, updateField }: Orde
                         updateField("items", items);
                       }}
                     />
-                    <ReviewField
-                      label="Tamanho"
-                      value={item.size}
-                      status={item.size ? "recognized" : "missing"}
-                      onChange={(v) => {
-                        const items = [...form.items];
-                        items[index] = { ...item, size: v };
-                        updateField("items", items);
-                      }}
-                    />
+                    <div>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <label className="text-sm text-text-muted">Tamanho</label>
+                        <span
+                          className={`text-xs ${
+                            item.size && (availableSizes.length === 0 || availableSizes.includes(item.size.trim().toUpperCase()))
+                              ? "text-success"
+                              : "text-text-muted"
+                          }`}
+                        >
+                          {item.size && (availableSizes.length === 0 || availableSizes.includes(item.size.trim().toUpperCase()))
+                            ? "Reconhecido"
+                            : "Não encontrado"}
+                        </span>
+                      </div>
+                      {availableSizes.length > 0 ? (
+                        <select
+                          value={availableSizes.includes(item.size.trim().toUpperCase()) ? item.size.trim().toUpperCase() : ""}
+                          onChange={(e) => {
+                            const items = [...form.items];
+                            // Trocar de tamanho invalida a cor escolhida antes — a
+                            // lista de cores disponíveis é por tamanho (ver
+                            // colorsForSize), então uma cor de outro tamanho não
+                            // necessariamente existe no novo.
+                            items[index] = { ...item, size: e.target.value, color: "" };
+                            updateField("items", items);
+                          }}
+                          className="w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text focus-visible:border-text"
+                        >
+                          <option value="">— escolha o tamanho —</option>
+                          {availableSizes.map((size) => (
+                            <option key={size} value={size}>
+                              {size}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={item.size}
+                          onChange={(e) => {
+                            const items = [...form.items];
+                            items[index] = { ...item, size: e.target.value };
+                            updateField("items", items);
+                          }}
+                          className="w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text focus-visible:border-text"
+                        />
+                      )}
+                    </div>
                     <div>
                       <div className="mb-1.5 flex items-center justify-between">
                         <label className="text-sm text-text-muted">Cor</label>

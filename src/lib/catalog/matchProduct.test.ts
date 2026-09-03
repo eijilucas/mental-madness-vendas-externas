@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colorsForSize, findCatalogProduct, findCatalogProductWithDetail, matchCatalogItem } from "./matchProduct";
+import { colorsForSize, findCatalogProduct, findCatalogProductWithDetail, matchCatalogItem, sizesForProduct } from "./matchProduct";
 import { CATALOG_SNAPSHOT } from "@/lib/catalogSnapshot";
 
 describe("matchCatalogItem", () => {
@@ -257,6 +257,31 @@ describe("matchCatalogItem", () => {
     it("lista vazia quando o tamanho não existe nesse produto", () => {
       const product = findCatalogProduct("Calça Reta Stitched (NOVAS CORES) - MM Basic Drop", CATALOG_SNAPSHOT)!;
       expect(colorsForSize(product, "GG")).toEqual([]);
+    });
+  });
+
+  describe("sizesForProduct", () => {
+    // Bug real em produção: "Regata Boxy - Darkmoon - Carnage" só tem
+    // variante size="ÚNICO" — operador digitou "G" (tamanho que não
+    // existe pra esse produto) e o pedido inteiro falhou como "Produto
+    // não encontrado no catálogo" sem nenhum aviso específico sobre o
+    // tamanho estar errado.
+    it("lista só ÚNICO pra produto sem grade de tamanho", () => {
+      const unico = {
+        id: "test-unico",
+        name: "Regata Teste Sem Grade",
+        type: "exclusivo" as const,
+        category: "regata",
+        drop: null,
+        active: true,
+        variants: [{ variantKey: "ÚNICO", size: "ÚNICO", color: null, estoqueReal: 0 }],
+      };
+      expect(sizesForProduct(unico)).toEqual(["ÚNICO"]);
+    });
+
+    it("lista os tamanhos reais em ordem PP..GG, não alfabética", () => {
+      const product = findCatalogProduct("Calça Reta Stitched - MM Basic Drop", CATALOG_SNAPSHOT)!;
+      expect(sizesForProduct(product)).toEqual(["PP", "P", "M", "G"]);
     });
   });
 });
