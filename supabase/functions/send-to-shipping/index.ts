@@ -28,6 +28,24 @@ interface RequestBody {
   order_id?: string;
 }
 
+// supabase-js's embedded-resource shape for a many-to-one join (orders.group_id
+// -> order_groups.id) is a single object at runtime, but its TS inference
+// (with no generated schema types plugged into this client) widens it to an
+// array — trusting that inference and indexing [0] silently read undefined on
+// every real order, so dropName always came through null (bug: every drop
+// showed as the panel's generic "Drop" fallback instead of its real name).
+// Handles both shapes defensively so it's correct either way.
+function extractGroupName(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    const first = value[0] as { name?: string } | undefined;
+    return first?.name ?? null;
+  }
+  if (value && typeof value === "object") {
+    return (value as { name?: string }).name ?? null;
+  }
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -114,7 +132,7 @@ Deno.serve(async (req: Request) => {
       unitPrice: String(item.unit_price),
     })),
     dropId: order.group_id,
-    dropName: order.order_groups?.[0]?.name ?? null,
+    dropName: extractGroupName(order.order_groups),
   };
 
   try {
