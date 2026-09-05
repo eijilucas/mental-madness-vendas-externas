@@ -129,18 +129,32 @@ export function EditOrderPage() {
           : form.sourceUsername.trim(),
     };
 
-    const { error } = await supabase.rpc("update_external_order", {
+    const { data: rpcResult, error } = await supabase.rpc("update_external_order", {
       p_order_id: data.order.id,
       payload,
     });
 
-    setSubmitting(false);
-
     if (error) {
+      setSubmitting(false);
       setSubmitError("Falha técnica ao salvar as alterações. Tente novamente.");
       return;
     }
 
+    // Espelha o que NewOrderPage já faz após criar — cobre o caso comum de
+    // corrigir um pedido que falhou (ex.: "not_created" por CPF/produto
+    // errado) e reenviar. Re-sincronizar um pedido já despachado
+    // (shipping_status='sent') com itens/endereço alterados fica fora de
+    // escopo por ora (docs/api-contracts/06-external-order-delete.md).
+    if (rpcResult.status === "created" && data.order.shipping_status !== "sent") {
+      await supabase.functions.invoke("send-to-shipping", { body: { order_id: data.order.id } }).catch(() => {});
+    }
+    if (form.couponCode.trim() && data.order.coupon_sale_status !== "registered") {
+      await supabase.functions
+        .invoke("register-coupon-sale", { body: { order_id: data.order.id, coupon_code: form.couponCode.trim() } })
+        .catch(() => {});
+    }
+
+    setSubmitting(false);
     navigate(`/pedidos/${data.order.public_number}`);
   }
 

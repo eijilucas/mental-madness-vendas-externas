@@ -52,7 +52,8 @@ Authorization: Bearer <EXTERNAL_ORDER_SALE_SECRET>
 
 - Cupom é **opcional** e vale pra **qualquer canal** de origem do pedido (WhatsApp, Discord, Instagram) — não é exclusivo de um canal.
 - Cupom não encontrado **não bloqueia a criação do pedido** — o pedido já foi criado antes dessa chamada acontecer. Só aparece um aviso pro operador: "Cupom não encontrado — confira se está digitado corretamente ou contate o TI." Correção manual (se precisar) acontece direto no painel admin do `mental-madness-mvp`.
-- Venda é registrada **no momento da criação do pedido**, não numa etapa posterior (confirmação de pagamento, despacho etc.) — decisão do usuário, aceitando que uma reversão futura (pedido cancelado) precisaria de remoção manual no painel admin do MVP por enquanto (sem automação de estorno nesta fase).
+- Venda é registrada **no momento da criação do pedido**, não numa etapa posterior (confirmação de pagamento, despacho etc.).
+- **Atualização (2026-09-05):** a reversão em caso de pedido cancelado deixou de ser manual — apagar o pedido no Vendas Externas agora chama automaticamente `DELETE /functions/v1/register-external-order-sale`, que remove a venda e seus itens (contrato: [06-external-order-delete.md](06-external-order-delete.md)). Só sobra correção manual no painel admin do MVP para casos fora desse fluxo (ex.: cupom errado sem apagar o pedido).
 - Valor lançado é o **`total_amount` do pedido inteiro**, não por item — um pedido com várias peças conta como **um único uso do cupom**, igual uma venda Shopify normal com o cupom aplicado no carrinho inteiro.
 
 ## Notas de implementação
