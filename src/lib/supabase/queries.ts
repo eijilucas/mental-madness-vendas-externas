@@ -296,7 +296,10 @@ export function useDeleteOrder() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (orderId: string) => {
-      const { error } = await supabase.rpc("delete_order", { p_order_id: orderId });
+      // Passa pela Edge Function em vez da RPC direto — ela também
+      // desfaz o pedido no mm-etiquetas e a comissão no mvp, quando
+      // aplicável (contrato: docs/api-contracts/06-external-order-delete.md).
+      const { error } = await supabase.functions.invoke("delete-order", { body: { order_id: orderId } });
       if (error) throw error;
     },
     onSuccess: () => {
