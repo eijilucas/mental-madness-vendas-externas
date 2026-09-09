@@ -156,7 +156,7 @@ export function buildTrackingEmailHtml(params: TrackingEmailParams): string {
           <tr>
             <td align="center" class="mm-px" style="padding: 36px 48px 16px;">
               <span class="mm-headline" style="font-family: 'Oswald', Arial, Helvetica, sans-serif; font-size: 28px; line-height: 34px; font-weight: 600; color: #f4f4f2; text-transform: uppercase; letter-spacing: 0.5px;">
-                Seu pedido saiu&nbsp;para entrega&nbsp;💜
+                Seu pedido saiu&nbsp;para entrega&nbsp;🖤
               </span>
             </td>
           </tr>
