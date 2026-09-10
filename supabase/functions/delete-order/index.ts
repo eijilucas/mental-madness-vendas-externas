@@ -21,9 +21,11 @@
 //
 // Deploy:
 //   npx supabase functions deploy delete-order --project-ref yriimdzhvohlqdgigbbg
-// (reaproveita EXTERNAL_ORDERS_SECRET/ETIQUETAS_FUNCTIONS_URL e
-// EXTERNAL_ORDER_SALE_SECRET/MVP_FUNCTIONS_URL já configurados pra
-// send-to-shipping/register-coupon-sale — nenhum secret novo.)
+// (reaproveita EXTERNAL_ORDERS_SECRET/ETIQUETAS_FUNCTIONS_URL,
+// EXTERNAL_ORDER_SALE_SECRET/MVP_FUNCTIONS_URL e
+// EXTERNAL_SALE_SECRET/JACKPOT_FUNCTIONS_URL já configurados pra
+// send-to-shipping/register-coupon-sale/register-jackpot-sale — nenhum
+// secret novo. Contrato 07 pra parte do Jackpot.)
 // ============================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -36,6 +38,8 @@ const EXTERNAL_ORDERS_SECRET = Deno.env.get("EXTERNAL_ORDERS_SECRET") ?? "";
 const ETIQUETAS_FUNCTIONS_URL = Deno.env.get("ETIQUETAS_FUNCTIONS_URL") ?? "";
 const EXTERNAL_ORDER_SALE_SECRET = Deno.env.get("EXTERNAL_ORDER_SALE_SECRET") ?? "";
 const MVP_FUNCTIONS_URL = Deno.env.get("MVP_FUNCTIONS_URL") ?? "";
+const EXTERNAL_SALE_SECRET = Deno.env.get("EXTERNAL_SALE_SECRET") ?? "";
+const JACKPOT_FUNCTIONS_URL = Deno.env.get("JACKPOT_FUNCTIONS_URL") ?? "";
 
 interface RequestBody {
   order_id?: string;
@@ -87,6 +91,28 @@ async function cancelCommission(orderId: string): Promise<SyncResult> {
   }
 }
 
+async function removeFromJackpot(orderId: string): Promise<SyncResult> {
+  if (!JACKPOT_FUNCTIONS_URL || !EXTERNAL_SALE_SECRET) return "not_linked";
+  try {
+    const res = await fetch(`${JACKPOT_FUNCTIONS_URL}/functions/v1/register-external-sale`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${EXTERNAL_SALE_SECRET}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ externalOrderId: orderId }),
+    });
+    if (!res.ok) {
+      console.error("delete-order: falha ao remover do Jackpot", await res.text().catch(() => ""));
+      return "error";
+    }
+    return "synced";
+  } catch (err) {
+    console.error("delete-order: erro de rede ao remover do Jackpot", err);
+    return "error";
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -116,7 +142,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: order, error: orderError } = await adminClient
     .from("orders")
-    .select("id, public_number, customer_name, shipping_status, coupon_sale_status")
+    .select("id, public_number, customer_name, shipping_status, coupon_sale_status, jackpot_sale_status")
     .eq("id", order_id)
     .maybeSingle();
 
@@ -126,6 +152,7 @@ Deno.serve(async (req: Request) => {
 
   const etiquetasResult: SyncResult = order.shipping_status === "sent" ? await cancelInEtiquetas(order.id) : "not_linked";
   const commissionResult: SyncResult = order.coupon_sale_status === "registered" ? await cancelCommission(order.id) : "not_linked";
+  const jackpotResult: SyncResult = order.jackpot_sale_status === "registered" ? await removeFromJackpot(order.id) : "not_linked";
 
   // Repassa o JWT de quem chamou (não service_role) só nessa chamada final,
   // pra delete_order continuar enxergando auth.uid() certo no audit log —
@@ -148,8 +175,9 @@ Deno.serve(async (req: Request) => {
       customer_name: order.customer_name,
       mm_etiquetas: etiquetasResult,
       commission: commissionResult,
+      jackpot: jackpotResult,
     },
   });
 
-  return jsonResponse({ ok: true, mm_etiquetas: etiquetasResult, commission: commissionResult });
+  return jsonResponse({ ok: true, mm_etiquetas: etiquetasResult, commission: commissionResult, jackpot: jackpotResult });
 });

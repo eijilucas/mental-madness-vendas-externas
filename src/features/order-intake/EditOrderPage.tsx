@@ -153,6 +153,12 @@ export function EditOrderPage() {
         .invoke("register-coupon-sale", { body: { order_id: data.order.id, coupon_code: form.couponCode.trim() } })
         .catch(() => {});
     }
+    // Re-sincroniza a venda no Jackpot (itens podem ter mudado). A function
+    // trata sozinha o gate de status e o grupo "Pedidos dos Membros"
+    // (contrato 07).
+    if (rpcResult.status === "created") {
+      await supabase.functions.invoke("register-jackpot-sale", { body: { order_id: data.order.id } }).catch(() => {});
+    }
 
     setSubmitting(false);
     navigate(`/pedidos/${data.order.public_number}`);

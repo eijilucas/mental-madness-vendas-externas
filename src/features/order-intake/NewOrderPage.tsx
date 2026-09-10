@@ -236,6 +236,16 @@ export function NewOrderPage() {
       }
     }
 
+    // Jackpot (lucro líquido) — best-effort e silencioso: é backoffice, o
+    // operador não precisa fazer nada se falhar; re-tenta no editar ou no
+    // backfill. A própria function pula o grupo "Pedidos dos Membros"
+    // (contrato 07).
+    try {
+      await supabase.functions.invoke("register-jackpot-sale", { body: { order_id: data.order_id } });
+    } catch {
+      // ignora
+    }
+
     setResult({ ok: true, orderNumber: data.public_number, couponWarning, shippingWarning });
     setStep("result");
   }

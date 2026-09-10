@@ -35,6 +35,7 @@ export interface Order {
   failure_reason: string | null;
   coupon_code: string | null;
   coupon_sale_status: "none" | "registered" | "not_found" | "error";
+  jackpot_sale_status: "none" | "registered" | "skipped_members" | "error";
   shipping_status: "pending" | "sent" | "failed";
   shipping_last_error: string | null;
   // Estágio real no pipeline de etiquetas do mm-etiquetas — null até o

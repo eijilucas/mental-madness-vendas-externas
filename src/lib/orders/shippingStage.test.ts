@@ -21,6 +21,7 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
     failure_reason: null,
     coupon_code: null,
     coupon_sale_status: "none",
+    jackpot_sale_status: "none",
     shipping_status: "sent",
     shipping_last_error: null,
     shipping_stage: null,

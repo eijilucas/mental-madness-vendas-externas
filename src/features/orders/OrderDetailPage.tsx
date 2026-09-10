@@ -252,6 +252,20 @@ export function OrderDetailPage() {
               )}
             </p>
           )}
+          {order.jackpot_sale_status !== "none" && (
+            <p className="mt-1 text-xs text-text-muted">
+              Lucro líquido:{" "}
+              {order.jackpot_sale_status === "registered" && (
+                <span className="text-success">contabilizado no Jackpot</span>
+              )}
+              {order.jackpot_sale_status === "skipped_members" && (
+                <span>não conta (pedido do time)</span>
+              )}
+              {order.jackpot_sale_status === "error" && (
+                <span className="text-warning">falha ao enviar, conferir depois</span>
+              )}
+            </p>
+          )}
         </section>
       </div>
 
