@@ -3,10 +3,9 @@ import { MentalLogo } from "./MentalLogo";
 import { useAuth } from "@/features/auth/useAuth";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Visão geral", end: true },
-  { to: "/novo-pedido", label: "Novo pedido" },
-  { to: "/pedidos", label: "Pedidos" },
   { to: "/drops", label: "Drops" },
+  { to: "/pedidos", label: "Pedidos" },
+  { to: "/", label: "Visão geral", end: true },
   { to: "/integracoes", label: "Central de integrações", adminOnly: false },
   { to: "/catalogo", label: "Catálogo" },
   { to: "/configuracoes", label: "Configurações" },
