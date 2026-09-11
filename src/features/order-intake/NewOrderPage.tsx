@@ -29,6 +29,7 @@ function emptyForm(originalMessage: string): ReviewForm {
     city: "",
     state: "",
     items: [],
+    shippingAmount: 0,
     originalMessage,
     source: "whatsapp",
     sourceUsername: "",
@@ -103,6 +104,7 @@ export function NewOrderPage() {
           variantMatched: false,
         }),
       ),
+      shippingAmount: 0,
       originalMessage: message,
       source: "whatsapp",
       sourceUsername: "",
@@ -177,6 +179,7 @@ export function NewOrderPage() {
         cep_verified: false,
       },
       items,
+      shipping_amount: form.shippingAmount,
       original_message: form.originalMessage,
       source: form.source,
       source_identifier:

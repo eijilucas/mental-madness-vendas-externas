@@ -28,6 +28,10 @@ export interface ReviewForm {
   city: string;
   state: string;
   items: ReviewItem[];
+  // Frete cobrado do cliente nessa venda (R$). Pode ser 0 (frete grátis).
+  // Entra no total_amount do pedido; não é extraído da mensagem, o operador
+  // digita na revisão.
+  shippingAmount: number;
   originalMessage: string;
   source: OrderSource;
   // @usuário (discord/instagram) — para whatsapp é derivado do telefone,

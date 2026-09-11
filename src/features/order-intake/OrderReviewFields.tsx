@@ -350,6 +350,30 @@ export function OrderReviewFields({ form, statuses, catalog, updateField }: Orde
         </button>
       </section>
 
+      <section className="rounded-md border border-border bg-surface p-6">
+        <h2 className="mb-4 text-base font-semibold text-text">Frete</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="field-frete" className="mb-1.5 block text-sm text-text-muted">
+              Valor do frete cobrado (R$)
+            </label>
+            <input
+              id="field-frete"
+              type="number"
+              min={0}
+              step="0.01"
+              value={form.shippingAmount ? String(form.shippingAmount) : ""}
+              onChange={(e) => updateField("shippingAmount", Number(e.target.value) || 0)}
+              placeholder="0,00"
+              className="w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-text-disabled focus-visible:border-text"
+            />
+            <p className="mt-1.5 text-xs text-text-muted">
+              Deixe 0 para frete grátis. Entra no total do pedido.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {form.originalMessage && (
         <section className="rounded-md border border-border bg-surface p-6 text-left">
           <h2 className="mb-2 text-base font-semibold text-text">Mensagem original</h2>

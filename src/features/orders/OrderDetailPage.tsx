@@ -224,7 +224,13 @@ export function OrderDetailPage() {
               </li>
             ))}
           </ul>
-          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <span className="text-text-muted">Frete cobrado</span>
+            <span className="text-text-muted">
+              {order.shipping_amount > 0 ? formatCurrency(order.shipping_amount) : "Grátis"}
+            </span>
+          </div>
+          <div className="mt-2 flex items-center justify-between border-t border-border pt-4">
             <span className="text-text-muted">Total</span>
             <span
               className="text-lg text-text"

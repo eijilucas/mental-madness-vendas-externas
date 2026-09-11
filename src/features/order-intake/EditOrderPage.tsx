@@ -66,6 +66,7 @@ export function EditOrderPage() {
           variantMatched: !!item.catalog_product_id,
         }),
       ),
+      shippingAmount: order.shipping_amount ?? 0,
       originalMessage: order.original_message,
       source: order.source === "manual" ? "whatsapp" : order.source,
       sourceUsername: order.source !== "whatsapp" ? order.source_identifier ?? "" : "",
@@ -121,6 +122,7 @@ export function EditOrderPage() {
         cep_verified: false,
       },
       items,
+      shipping_amount: form.shippingAmount,
       original_message: form.originalMessage,
       source: form.source,
       source_identifier:
