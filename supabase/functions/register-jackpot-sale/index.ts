@@ -90,6 +90,26 @@ Deno.serve(async (req: Request) => {
       .eq("id", order.group_id)
       .maybeSingle();
     if ((group?.name ?? "").trim().toLowerCase() === MEMBERS_GROUP_NAME) {
+      // Pedido pode ter sido movido pra esse grupo depois de já registrado
+      // no Jackpot (correção manual) — remove a venda de lá também, senão
+      // fica uma linha órfã contando faturamento que não é venda.
+      if (JACKPOT_FUNCTIONS_URL && EXTERNAL_SALE_SECRET) {
+        try {
+          const res = await fetch(`${JACKPOT_FUNCTIONS_URL}/functions/v1/register-external-sale`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${EXTERNAL_SALE_SECRET}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ externalOrderId: order.id }),
+          });
+          if (!res.ok) {
+            console.error("register-jackpot-sale: falha ao remover do Jackpot (skipped_members)", res.status, await res.text().catch(() => ""));
+          }
+        } catch (err) {
+          console.error("register-jackpot-sale: erro de rede ao remover do Jackpot (skipped_members)", err);
+        }
+      }
       await admin.from("orders").update({ jackpot_sale_status: "skipped_members" }).eq("id", order.id);
       return jsonResponse({ status: "skipped_members" });
     }

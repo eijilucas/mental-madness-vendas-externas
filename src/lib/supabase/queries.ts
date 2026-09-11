@@ -284,6 +284,11 @@ export function useSetOrderGroup() {
       // tentativa de manter o mm-etiquetas em dia — se falhar, o pedido
       // fica temporariamente sem refletir o drop lá, mas nada se perde.
       await supabase.functions.invoke("send-to-shipping", { body: { order_id: orderId } }).catch(() => {});
+
+      // Entrar ou saír do grupo "Pedidos dos membros" muda se a venda conta
+      // no Jackpot (contrato 07) — a function decide sozinha (skip/registra)
+      // olhando o grupo atual, best-effort igual acima.
+      await supabase.functions.invoke("register-jackpot-sale", { body: { order_id: orderId } }).catch(() => {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
