@@ -5,9 +5,13 @@ interface MentalLogoProps {
   className?: string;
 }
 
+// Aponta pro hub que reúne os painéis todos (Vendas Externas, mm-etiquetas,
+// Jackpot, ...) — clicar na logo sai desse app e vai pra lá.
+const HUB_URL = "https://mental-madness-hub.vercel.app/";
+
 export function MentalLogo({ variant = "full", className = "" }: MentalLogoProps) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <a href={HUB_URL} className={`flex items-center gap-2 ${className}`}>
       <img
         src={symbol}
         alt=""
@@ -22,6 +26,6 @@ export function MentalLogo({ variant = "full", className = "" }: MentalLogoProps
           Mental Madness
         </span>
       )}
-    </div>
+    </a>
   );
 }
