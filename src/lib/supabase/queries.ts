@@ -388,9 +388,22 @@ export function useUniqueCoupons() {
     queryKey: ["unique-coupons"],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<string[]> => {
-      const { data, error } = await supabase.functions.invoke("list-coupons");
+      const { data, error } = await supabase
+        .from("orders")
+        .select("coupon_code")
+        .eq("status", "created")
+        .not("coupon_code", "is", null);
       if (error) throw error;
-      return (data?.coupons ?? []) as string[];
+
+      // Deduplica, remove vazios e ordena
+      const unique = [
+        ...new Set(
+          (data ?? [])
+            .map((o) => (o as { coupon_code: string | null }).coupon_code)
+            .filter((code): code is string => Boolean(code?.trim()))
+        ),
+      ].sort();
+      return unique;
     },
   });
 }
