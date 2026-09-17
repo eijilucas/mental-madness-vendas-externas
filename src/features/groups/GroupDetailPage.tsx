@@ -37,6 +37,7 @@ export function GroupDetailPage() {
   const [nameDraft, setNameDraft] = useState("");
   const [addingOrders, setAddingOrders] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchGroup, setSearchGroup] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const { data: ungrouped } = useUngroupedOrders();
@@ -51,6 +52,17 @@ export function GroupDetailPage() {
       );
     });
   }, [ungrouped, search]);
+
+  const filteredGroupOrders = useMemo(() => {
+    const term = searchGroup.trim().toLowerCase();
+    return (orders ?? []).filter(({ order }) => {
+      if (!term) return true;
+      return (
+        order.customer_name.toLowerCase().includes(term) ||
+        String(order.public_number).includes(term)
+      );
+    });
+  }, [orders, searchGroup]);
 
   if (loadingGroup) return <LoadingState label="Carregando drop…" />;
   if (errorGroup || !group) {
@@ -127,10 +139,21 @@ export function GroupDetailPage() {
         </form>
       )}
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text">
-          Pedidos do drop {orders ? `(${orders.length})` : ""}
-        </h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-1">
+          <h2 className="text-base font-semibold text-text">
+            Pedidos do drop {orders ? `(${orders.length})` : ""}
+          </h2>
+          {orders && orders.length > 0 && (
+            <div className="sm:max-w-xs sm:ml-auto">
+              <SearchField
+                value={searchGroup}
+                onChange={setSearchGroup}
+                placeholder="Buscar por nome ou número"
+              />
+            </div>
+          )}
+        </div>
         <div className="flex gap-3">
           {!addingOrders && (
             <button
@@ -210,9 +233,14 @@ export function GroupDetailPage() {
           title="Nenhum pedido nesse drop ainda"
           description='Use "Adicionar pedidos" para escolher quais pedidos entram aqui.'
         />
+      ) : filteredGroupOrders.length === 0 ? (
+        <EmptyState
+          title="Nenhum pedido encontrado"
+          description="Ajuste a busca."
+        />
       ) : (
         <OrderTable
-          orders={orders}
+          orders={filteredGroupOrders}
           removeLabel="Remover do drop"
           onRemove={(order) => setOrderGroup.mutate({ orderId: order.id, groupId: null })}
         />
