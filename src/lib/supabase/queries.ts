@@ -388,15 +388,9 @@ export function useUniqueCoupons() {
     queryKey: ["unique-coupons"],
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<string[]> => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("coupon_code")
-        .not("coupon_code", "is", null);
+      const { data, error } = await supabase.functions.invoke("list-coupons");
       if (error) throw error;
-
-      // Deduplica e ordena alfabeticamente
-      const unique = [...new Set((data ?? []).map((o) => (o as { coupon_code: string }).coupon_code).filter(Boolean))];
-      return unique.sort();
+      return (data?.coupons ?? []) as string[];
     },
   });
 }
