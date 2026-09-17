@@ -1,5 +1,6 @@
 import { ReviewField } from "./ReviewField";
 import { ProductQueryField } from "./ProductQueryField";
+import { CouponField } from "./CouponField";
 import type { FieldStatus, OrderSource, ReviewForm, ReviewItem } from "./reviewTypes";
 import { colorsForSize, findCatalogProductWithDetail, matchCatalogItem, sizesForProduct } from "@/lib/catalog/matchProduct";
 import { onlyDigits } from "@/lib/parser/normalizers";
@@ -74,19 +75,10 @@ export function OrderReviewFields({ form, statuses, catalog, updateField }: Orde
               onChange={(v) => updateField("sourceUsername", v)}
             />
           )}
-          <div>
-            <label htmlFor="field-cupom" className="mb-1.5 block text-sm text-text-muted">
-              Cupom utilizado (opcional)
-            </label>
-            <input
-              id="field-cupom"
-              type="text"
-              value={form.couponCode}
-              onChange={(e) => updateField("couponCode", e.target.value.toUpperCase())}
-              placeholder="Ex.: DARK"
-              className="w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text placeholder:text-text-disabled focus-visible:border-text"
-            />
-          </div>
+          <CouponField
+            value={form.couponCode}
+            onChange={(v) => updateField("couponCode", v)}
+          />
         </div>
       </section>
 
